@@ -350,6 +350,6 @@ button svg { width: 18px; height: 18px; }
 }
 
 @media (max-width: 700px) and (orientation: portrait) {
-	body { overflow-x: auto; overflow-y: hidden; touch-action: pan-x; }
-	.game-shell { overflow: visible; }
+	body { overflow: auto; touch-action: pan-x pan-y; }
+	.game-shell { height: auto; min-height: max(100dvh, 1024px); overflow: visible; }
 }
