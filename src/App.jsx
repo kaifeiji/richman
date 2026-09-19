@@ -90,12 +90,18 @@ export default function App() {
     if (remoteRoleRef.current === 'host') remoteSessionRef.current?.send({ type: 'movement', position: null });
   };
 
+  const setSyncedAnimation = (next) => {
+    setAnimation(next);
+    if (remoteRoleRef.current === 'host') remoteSessionRef.current?.send({ type: 'animation', animation: next });
+  };
+
   const handleRemoteMessage = (message) => {
     if (message.type === 'state' && remoteRoleRef.current) setGame(message.game);
     if (message.type === 'movement' && remoteRoleRef.current === 'guest') {
       if (message.position === null) setDisplayPositions({});
       else setDisplayPositions((current) => ({ ...current, [message.movingPlayerId]: message.position }));
     }
+    if (message.type === 'animation' && remoteRoleRef.current === 'guest') setAnimation(message.animation);
     if (message.type === 'joined' || message.type === 'players') {
       if (message.type === 'joined') {
         remotePlayerIdRef.current = message.playerId;
@@ -162,38 +168,38 @@ export default function App() {
     if (!game || animation.active || game.phase !== 'roll' || game.players[game.current].jailed) return;
     const player = game.players[game.current];
     const dice = Math.floor(Math.random() * 6) + 1;
-    setAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: 1 });
+    setSyncedAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: 1 });
     for (const duration of ROLL_TIMING) {
-      setAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: Math.floor(Math.random() * 6) + 1 });
+      setSyncedAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: Math.floor(Math.random() * 6) + 1 });
       await wait(duration);
     }
-    setAnimation({ active: true, rolling: false, revealing: true, moving: false, dice });
+    setSyncedAnimation({ active: true, rolling: false, revealing: true, moving: false, dice });
     await wait(DICE_REVEAL_DELAY);
     const next = rollDice(game, dice);
     const finalPosition = next.players.find((item) => item.id === player.id).position;
     const path = createMovementPath(player.position, dice, finalPosition, next.lastCard?.action);
-    setAnimation({ active: true, rolling: false, revealing: false, moving: true, movementKind: 'dice', dice });
+    setSyncedAnimation({ active: true, rolling: false, revealing: false, moving: true, movementKind: 'dice', dice });
     for (const position of path) {
       updateDisplayPosition(player.id, position);
       await wait(movementStepDelay(path.length));
     }
     await commitWithAutoTurn(next);
     clearDisplayPositions();
-    setAnimation({ active: false, rolling: false, revealing: false, moving: false, dice });
+    setSyncedAnimation({ active: false, rolling: false, revealing: false, moving: false, dice });
   };
 
   const animateMechanismRoll = async () => {
     if (!game?.pendingEffect?.requiresRoll || animation.active) return;
     const dice = Math.floor(Math.random() * 6) + 1;
-    setAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: 1 });
+    setSyncedAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: 1 });
     for (const duration of ROLL_TIMING) {
-      setAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: Math.floor(Math.random() * 6) + 1 });
+      setSyncedAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: Math.floor(Math.random() * 6) + 1 });
       await wait(duration);
     }
-    setAnimation({ active: true, rolling: false, revealing: true, moving: false, dice });
+    setSyncedAnimation({ active: true, rolling: false, revealing: true, moving: false, dice });
     await wait(DICE_REVEAL_DELAY);
     setGame(rollPendingEffect(game, dice));
-    setAnimation({ active: false, rolling: false, revealing: false, moving: false, dice });
+    setSyncedAnimation({ active: false, rolling: false, revealing: false, moving: false, dice });
   };
 
   const animateCardDraw = async () => {

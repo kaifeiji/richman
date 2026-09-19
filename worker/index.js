@@ -64,7 +64,7 @@ export class RichmanRoom {
         this.game = message.game;
         this.broadcast({ ...message, playerId: sender.playerId }, server);
       }
-      if (message.type === 'state' || message.type === 'movement') {
+      if (message.type === 'state' || message.type === 'movement' || message.type === 'animation') {
         if (!sender.host) return;
         if (message.type === 'state') this.game = message.game;
         this.broadcast({ ...message, playerId: sender.playerId }, server);
