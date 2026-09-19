@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Minus, Plus, Users } from 'lucide-react';
+import { Crown, DoorOpen, LogIn, Minus, Play, Plus, Users } from 'lucide-react';
 
-export default function SetupScreen({ names, setNames, onStart, onHost, onJoin, remote }) {
+export default function SetupScreen({ names, setNames, onStart, onEnterRoom, onLeaveRoom, remote }) {
   const [mode, setMode] = useState('local');
-  const [remoteAction, setRemoteAction] = useState('choose');
-  const [roomName, setRoomName] = useState('家庭房间');
-  const [remoteName, setRemoteName] = useState('玩家 1');
+  const [roomName, setRoomName] = useState('richman');
+  const [remoteName, setRemoteName] = useState('');
   const updateName = (index, value) => setNames(names.map((name, itemIndex) => itemIndex === index ? value : name));
   return <main className="setup-page">
     <section className="setup-panel">
@@ -26,16 +25,21 @@ export default function SetupScreen({ names, setNames, onStart, onHost, onJoin, 
         <button className="primary-button" onClick={onStart} disabled={names.some((name) => !name.trim())}>开始游戏</button>
       </div>
       </> : <section className="remote-setup">
-        <p>输入相同房间名即可相遇，房主开始游戏。</p>
-        {!remote && remoteAction === 'choose' && <><label>房间名<input value={roomName} maxLength={24} onChange={(event) => setRoomName(event.target.value)} /></label><label>昵称<input value={remoteName} maxLength={10} onChange={(event) => setRemoteName(event.target.value)} /></label><div className="remote-choices"><button className="primary-button" onClick={() => { setRemoteAction('host'); onHost(roomName, remoteName); }} disabled={!roomName.trim() || !remoteName.trim()}>创建房间</button><button className="ghost-button" onClick={() => { setRemoteAction('join'); setRemoteName('玩家 2'); }}>加入房间</button></div></>}
-        {!remote && remoteAction === 'join' && <>
+        {!remote ? <>
+          <p>输入同一个房间名即可进入。第一位进入的玩家自动成为房主，至少 2 人才能开始。</p>
           <label>房间名<input value={roomName} maxLength={24} onChange={(event) => setRoomName(event.target.value)} /></label>
-          <label>昵称<input value={remoteName} maxLength={10} onChange={(event) => setRemoteName(event.target.value)} /></label>
-          <button className="primary-button" onClick={() => onJoin(roomName, remoteName)} disabled={!roomName.trim() || !remoteName.trim()}>加入房间</button>
-          <button className="ghost-button" onClick={() => setRemoteAction('choose')}>返回</button>
+          <label>昵称<input value={remoteName} maxLength={10} placeholder="请输入昵称" onChange={(event) => setRemoteName(event.target.value)} /></label>
+          <button className="primary-button remote-enter-button" onClick={() => onEnterRoom(roomName.trim(), remoteName.trim())} disabled={!roomName.trim() || !remoteName.trim()}><LogIn />进入房间</button>
+        </> : <>
+          <div className="room-header"><strong>{remote.roomName}</strong><b>{remote.players.length}/4</b></div>
+          {remote?.status && <strong className={`remote-status ${remote.error ? 'is-error' : ''}`}>{remote.status}</strong>}
+          <div className="room-members" aria-label="房间玩家">
+            {remote.players.length === 0 ? <span className="room-placeholder">正在确认房间身份...</span> : remote.players.map((player) => <div className="room-member" key={player.playerId}><i>{player.playerId + 1}</i><strong>{player.name}</strong>{player.host && <span><Crown />房主</span>}</div>)}
+          </div>
+          {remote.role === 'host' && <button className="primary-button remote-enter-button" onClick={remote.onStart} disabled={!remote.ready}><Play />开始游戏</button>}
+          {remote.role === 'guest' && <div className="room-waiting">已就位，等待房主开始游戏</div>}
+          <button className="ghost-button leave-room-button" onClick={onLeaveRoom}><DoorOpen />离开房间</button>
         </>}
-        {remote?.role === 'host' && <button className="primary-button" onClick={remote.onStart} disabled={!remote.ready}>开始游戏</button>}
-        {remote?.status && <strong className="remote-status">{remote.status}</strong>}
       </section>}
     </section>
   </main>;

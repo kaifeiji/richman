@@ -66,24 +66,43 @@ export default function App() {
 
   const handleRemoteMessage = (message) => {
     if (message.type === 'state' && remoteRoleRef.current === 'guest') setGame(message.game);
-    if (message.type === 'players' && remoteRoleRef.current === 'host') { remotePlayersRef.current = message.players; setRemote((current) => current ? { ...current, players: message.players, ready: message.players.length > 1, status: message.players.length > 1 ? '玩家已加入，可以开始' : '等待家人加入' } : current); }
+    if (message.type === 'joined' || message.type === 'players') {
+      if (message.type === 'joined') {
+        remotePlayerIdRef.current = message.playerId;
+        remoteRoleRef.current = message.playerId === 0 ? 'host' : 'guest';
+      }
+      remotePlayersRef.current = message.players;
+      setRemote((current) => {
+        if (!current) return current;
+        const role = remoteRoleRef.current;
+        const ready = role === 'host' && message.players.length > 1;
+        const status = role === 'host'
+          ? ready ? '玩家已加入，可以开始游戏' : '房间已创建，等待玩家加入'
+          : '已进入房间，等待房主开始游戏';
+        return { ...current, role, players: message.players, ready, status };
+      });
+    }
+    if (message.type === 'room-full') setRemote((current) => current ? { ...current, status: '房间已满，最多 4 位玩家', error: true } : current);
     if (message.type === 'start' && remoteRoleRef.current === 'guest') setGame(message.game);
-    if (message.type === 'command' && remoteRoleRef.current === 'host' && message.playerId === 1) remoteCommandRef.current(message.command);
+    if (message.type === 'command' && remoteRoleRef.current === 'host') remoteCommandRef.current(message.command);
   };
 
-  const handleHost = (roomName, hostName) => {
-    remoteRoleRef.current = 'host';
-    const session = connectRoom({ roomName, nickname: hostName, onMessage: handleRemoteMessage, onOpen: () => setRemote((current) => ({ ...current, status: '房间已创建，等待家人加入', ready: false })), onClose: () => setRemote((current) => current ? { ...current, status: '房间连接已断开' } : current) });
+  const handleEnterRoom = (roomName, playerName) => {
+    remoteRoleRef.current = null;
+    remotePlayerIdRef.current = null;
+    remotePlayersRef.current = [];
+    const session = connectRoom({ roomName, nickname: playerName, onMessage: handleRemoteMessage, onOpen: () => setRemote((current) => ({ ...current, status: '已连接，正在进入房间' })), onClose: () => setRemote((current) => current ? current.error ? current : { ...current, status: '房间连接已断开，请返回后重试', error: true } : current), onError: () => setRemote((current) => current ? { ...current, status: '无法连接信令服务，请检查网络后重试', error: true } : current) });
     remoteSessionRef.current = session;
-    setRemote({ role: 'host', roomName, hostName, ready: false, status: '正在连接房间', onStart: () => { const playerNames = [hostName, ...remotePlayersRef.current.filter((player) => player.playerId !== 0).map((player) => player.name)]; const next = createGame(playerNames); startGameWithNames(playerNames); session.send({ type: 'start', game: next }); } });
+    setRemote({ role: 'joining', roomName, playerName, players: [], ready: false, status: '正在连接房间', onStart: () => { const playerNames = remotePlayersRef.current.map((player) => player.name); const next = createGame(playerNames); startGameWithNames(playerNames); session.send({ type: 'start', game: next }); } });
   };
 
-  const handleJoin = (roomName, guestName) => {
-    remoteRoleRef.current = 'guest';
-    const session = connectRoom({ roomName, nickname: guestName, onMessage: handleRemoteMessage, onOpen: () => setRemote((current) => ({ ...current, status: '已进入房间，等待房主开始' })), onClose: () => setRemote((current) => current ? { ...current, status: '房间连接已断开' } : current) });
-    remoteSessionRef.current = session;
-    remotePlayerIdRef.current = 1;
-    setRemote({ role: 'guest', roomName, guestName, status: '正在加入房间' });
+  const leaveRemoteRoom = () => {
+    remoteSessionRef.current?.close();
+    remoteSessionRef.current = null;
+    remoteRoleRef.current = null;
+    remotePlayerIdRef.current = null;
+    remotePlayersRef.current = [];
+    setRemote(null);
   };
 
   const animatePropertyAction = async (type) => {
@@ -300,7 +319,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [game, paused, animation.active, confirmRestart]);
 
-  if (!game) return <SetupScreen names={names} setNames={setNames} onStart={startGame} onHost={handleHost} onJoin={handleJoin} remote={remote} />;
+  if (!game) return <SetupScreen names={names} setNames={setNames} onStart={startGame} onEnterRoom={handleEnterRoom} onLeaveRoom={leaveRemoteRoom} remote={remote} />;
 
   const restart = () => {
     setGame(null);
