@@ -41,13 +41,14 @@ function pieceOffset(index, count) {
   return layouts[count]?.[index] || [0, 0];
 }
 
-export default function Board({ game, displayPositions, animation, actionFeedback, paused, canAct, onTogglePause, onLogOpen, onLogClose, onRestart, onRoll, onBuy, onBuild, onEnd, onRelease, onDraw, onMechanismRoll, onResolve, onSellBuilding, onSellProperty }) {
+export default function Board({ game, displayPositions, movingPlayerId, animation, actionFeedback, paused, canAct, onTogglePause, onLogOpen, onLogClose, onRestart, onRoll, onBuy, onBuild, onEnd, onRelease, onDraw, onMechanismRoll, onResolve, onSellBuilding, onSellProperty }) {
   const boardRef = useRef(null);
   const [showLog, setShowLog] = useState(false);
   const [countryTip, setCountryTip] = useState(null);
   const [focusLine, setFocusLine] = useState(null);
   const activePlayer = game.players[game.current];
-  const activePosition = displayPositions[activePlayer.id] ?? activePlayer.position;
+  const focusPlayer = animation.moving && movingPlayerId !== null ? game.players.find((player) => player.id === movingPlayerId) || activePlayer : activePlayer;
+  const activePosition = displayPositions[focusPlayer.id] ?? focusPlayer.position;
   const selectedTile = BOARD[activePosition];
   const selectedOwner = ownerOf(game, activePosition);
   const selectedFees = currentFees(game, selectedTile);
@@ -82,7 +83,7 @@ export default function Board({ game, displayPositions, animation, actionFeedbac
     animationFrame = requestAnimationFrame(updateLine);
     window.addEventListener('resize', updateLine);
     return () => { cancelAnimationFrame(animationFrame); window.removeEventListener('resize', updateLine); };
-  }, [activePosition, game.current, animation.moving]);
+  }, [activePosition, focusPlayer.id, animation.moving]);
   let actionStatus = null;
   if (selectedTile.type === 'property' && game.phase === 'action' && !animation.active) {
     if (!selectedOwner && !selectedHasBuildings) actionStatus = activePlayer.money >= selectedTile.ownership ? '可购买' : '购买资金不足';
@@ -115,11 +116,11 @@ export default function Board({ game, displayPositions, animation, actionFeedbac
           const position = displayPositions[player.id] ?? player.position;
           const colocated = game.players.filter((item) => !item.bankrupt && (displayPositions[item.id] ?? item.position) === position);
           const [offsetX, offsetY] = pieceOffset(colocated.findIndex((item) => item.id === player.id), colocated.length);
-          const moving = player.id === activePlayer.id && animation.moving;
-          return <span className={`game-piece ${player.id === activePlayer.id ? 'is-current' : ''} ${moving ? 'is-moving' : ''}`} style={{ ...piecePosition(position, offsetX, offsetY), '--piece-color': player.color }} key={player.id} title={player.name}><i className="piece-core" key={moving ? position : 'static'}>{player.initials}</i></span>;
+          const moving = player.id === focusPlayer.id && animation.moving;
+          return <span className={`game-piece ${player.id === focusPlayer.id ? 'is-current' : ''} ${moving ? 'is-moving' : ''}`} style={{ ...piecePosition(position, offsetX, offsetY), '--piece-color': player.color }} key={player.id} title={player.name}><i className="piece-core" key={moving ? position : 'static'}>{player.initials}</i></span>;
         })}
       </div>
-      {focusLine && <svg className="player-focus-line" aria-hidden="true"><defs><marker id="player-focus-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" style={{ fill: activePlayer.color }} /></marker></defs><line x1={focusLine.x2} y1={focusLine.y2} x2={focusLine.x1} y2={focusLine.y1} style={{ '--focus-color': activePlayer.color }} markerEnd="url(#player-focus-arrow)" /></svg>}
+      {focusLine && <svg className="player-focus-line" aria-hidden="true"><defs><marker id="player-focus-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" style={{ fill: focusPlayer.color }} /></marker></defs><line x1={focusLine.x2} y1={focusLine.y2} x2={focusLine.x1} y2={focusLine.y1} style={{ '--focus-color': focusPlayer.color }} markerEnd="url(#player-focus-arrow)" /></svg>}
       <div className="board-center">
         <div className="board-title">
           <span>AROUND THE WORLD</span><h1>环球大富翁</h1>

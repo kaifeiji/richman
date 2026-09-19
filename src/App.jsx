@@ -54,6 +54,7 @@ export default function App() {
     const logPausedRef = useRef(false);
   const [animation, setAnimation] = useState({ active: false, rolling: false, revealing: false, moving: false, dice: null });
   const [displayPositions, setDisplayPositions] = useState({});
+  const [movingPlayerId, setMovingPlayerId] = useState(null);
   const [actionFeedback, setActionFeedback] = useState(null);
   const [moneyEffects, setMoneyEffects] = useState([]);
   const [moneyPulses, setMoneyPulses] = useState({});
@@ -85,11 +86,13 @@ export default function App() {
 
   const updateDisplayPosition = (playerId, position) => {
     setDisplayPositions((current) => ({ ...current, [playerId]: position }));
+    setMovingPlayerId(playerId);
     if (remoteRoleRef.current === 'host') remoteSessionRef.current?.send({ type: 'movement', movingPlayerId: playerId, position });
   };
 
   const clearDisplayPositions = () => {
     setDisplayPositions({});
+    setMovingPlayerId(null);
     if (remoteRoleRef.current === 'host') remoteSessionRef.current?.send({ type: 'movement', position: null });
   };
 
@@ -101,8 +104,13 @@ export default function App() {
   const handleRemoteMessage = (message) => {
     if (message.type === 'state' && remoteRoleRef.current) setGame(message.game);
     if (message.type === 'movement' && remoteRoleRef.current === 'guest') {
-      if (message.position === null) setDisplayPositions({});
-      else setDisplayPositions((current) => ({ ...current, [message.movingPlayerId]: message.position }));
+      if (message.position === null) {
+        setDisplayPositions({});
+        setMovingPlayerId(null);
+      } else {
+        setDisplayPositions((current) => ({ ...current, [message.movingPlayerId]: message.position }));
+        setMovingPlayerId(message.movingPlayerId);
+      }
     }
     if (message.type === 'animation' && remoteRoleRef.current === 'guest') setAnimation(message.animation);
     if (message.type === 'joined' || message.type === 'players') {
@@ -398,7 +406,7 @@ export default function App() {
   return <main className="game-shell">
     <div className="player-strip" style={{ '--player-count': game.players.length }}>{game.players.map((player) => <PlayerPanel key={player.id} player={player} active={player.id === activePlayerId} rank={ranks.get(player.id)} moneyPulse={moneyPulses[player.id]} />)}</div>
     <div className="game-layout">
-      <Board game={game} displayPositions={displayPositions} animation={animation} actionFeedback={actionFeedback} paused={paused} canAct={canAct} onTogglePause={() => setPaused((value) => !value)} onLogOpen={() => { if (!paused) { logPausedRef.current = true; setPaused(true); } }} onLogClose={() => { if (logPausedRef.current) { logPausedRef.current = false; setPaused(false); } }} onRestart={() => setConfirmRestart(true)} onRoll={() => remoteInvoke({ type: 'roll' }, animateRoll)} onBuy={() => remoteInvoke({ type: 'buy' }, () => animatePropertyAction('buy'))} onBuild={() => remoteInvoke({ type: 'build' }, () => animatePropertyAction('build'))} onEnd={() => remoteInvoke({ type: 'end' }, () => apply(endTurn))} onRelease={(method) => remoteInvoke({ type: 'release', method }, () => apply((current) => releaseFromJail(current, method)))} onDraw={() => remoteInvoke({ type: 'draw' }, animateCardDraw)} onMechanismRoll={() => remoteInvoke({ type: 'mechanismRoll' }, animateMechanismRoll)} onResolve={() => remoteInvoke({ type: 'resolve' }, executeEffect)} onSellBuilding={(position) => remoteInvoke({ type: 'sellBuilding', position }, () => apply((current) => sellBuilding(current, position)))} onSellProperty={(position) => remoteInvoke({ type: 'sellProperty', position }, () => apply((current) => sellProperty(current, position)))} />
+      <Board game={game} displayPositions={displayPositions} movingPlayerId={movingPlayerId} animation={animation} actionFeedback={actionFeedback} paused={paused} canAct={canAct} onTogglePause={() => setPaused((value) => !value)} onLogOpen={() => { if (!paused) { logPausedRef.current = true; setPaused(true); } }} onLogClose={() => { if (logPausedRef.current) { logPausedRef.current = false; setPaused(false); } }} onRestart={() => setConfirmRestart(true)} onRoll={() => remoteInvoke({ type: 'roll' }, animateRoll)} onBuy={() => remoteInvoke({ type: 'buy' }, () => animatePropertyAction('buy'))} onBuild={() => remoteInvoke({ type: 'build' }, () => animatePropertyAction('build'))} onEnd={() => remoteInvoke({ type: 'end' }, () => apply(endTurn))} onRelease={(method) => remoteInvoke({ type: 'release', method }, () => apply((current) => releaseFromJail(current, method)))} onDraw={() => remoteInvoke({ type: 'draw' }, animateCardDraw)} onMechanismRoll={() => remoteInvoke({ type: 'mechanismRoll' }, animateMechanismRoll)} onResolve={() => remoteInvoke({ type: 'resolve' }, executeEffect)} onSellBuilding={(position) => remoteInvoke({ type: 'sellBuilding', position }, () => apply((current) => sellBuilding(current, position)))} onSellProperty={(position) => remoteInvoke({ type: 'sellProperty', position }, () => apply((current) => sellProperty(current, position)))} />
     </div>
     {confirmRestart && <div className="modal-layer"><section className="modal-card confirm-card"><span className="kicker">重新开局</span><h2>放弃当前进度？</h2><p>当前棋局和本地存档都会被清除，此操作无法撤销。</p><div className="confirm-actions"><button className="ghost-button" onClick={() => setConfirmRestart(false)}>取消</button><button className="danger-button" onClick={restart}>确认重新开局</button></div></section></div>}
     <div className="money-fx-layer" aria-hidden="true">{moneyEffects.map((effect) => <span className={effect.delta > 0 ? 'is-gain' : 'is-loss'} style={{ '--money-x': `${effect.targetX - window.innerWidth / 2}px`, '--money-y': `${effect.targetY - window.innerHeight / 2}px`, '--money-offset': `${effect.offset}px` }} key={effect.id}>{effect.delta > 0 ? '+' : '-'}{money(Math.abs(effect.delta))}</span>)}</div>
