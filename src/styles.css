@@ -35,10 +35,20 @@ button svg { width: 18px; height: 18px; }
 .setup-panel > p { margin: 0 0 30px; color: #59706a; line-height: 1.7; }
 .setup-heading { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid #d2dbd4; }
 .setup-heading span { margin-left: auto; color: #6c7c76; }
+.setup-mode-tabs { display: grid; grid-template-columns: 1fr 1fr; margin: 20px 0 16px; border-bottom: 1px solid #d2dbd4; }
+.setup-mode-tabs button { padding: 9px 8px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #71817a; cursor: pointer; font-weight: 800; }
+.setup-mode-tabs button.is-active { border-bottom-color: #236c5d; color: #18322d; }
+.remote-setup { display: grid; gap: 10px; }
+.remote-setup p { margin: 0 0 8px; color: #59706a; font-size: .78rem; line-height: 1.6; }
+.remote-setup label { display: grid; gap: 5px; color: #60736b; font-size: .72rem; font-weight: 800; }
+.remote-setup textarea { min-height: 88px; resize: vertical; border: 1px solid #bac6bd; padding: 8px; background: white; color: #18322d; font: .68rem/1.45 ui-monospace, monospace; }
+.remote-setup button { width: fit-content; }
+.remote-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.remote-status { padding: 8px 10px; background: #e7f1e9; color: #286448; font-size: .78rem; }
 .name-list { display: grid; gap: 10px; margin: 16px 0 24px; }
 .name-list label { display: flex; align-items: center; gap: 10px; }
 .name-list i { width: 34px; height: 34px; display: grid; place-items: center; color: white; font-style: normal; font-weight: 800; }
-.name-list input { min-width: 0; flex: 1; height: 42px; border: 1px solid #bac6bd; padding: 0 12px; background: #fff; font-weight: 700; }
+.name-list input, .remote-setup input { min-width: 0; width: 100%; height: 52px; border: 1px solid #bac6bd; padding: 0 14px; background: #fff; color: #18322d; font-size: 1.05rem; font-weight: 700; }
 .setup-actions { display: flex; gap: 10px; }
 .setup-actions .primary-button { margin-left: auto; }
 

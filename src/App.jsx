@@ -7,6 +7,7 @@ import { BOARD } from './game/board';
 import { buildProperty, buyProperty, createGame, drawPendingCard, endTurn, hasOptionalPropertyAction, ownerOf, releaseFromJail, resolvePending, rollDice, rollPendingEffect, sellBuilding, sellProperty, totalAssets } from './game/engine';
 import { money } from './game/format';
 import { createMovementPath } from './game/movement';
+import { connectRoom } from './remote/room';
 
 const STORAGE_KEY = 'richman-local-game-v1';
 const wait = (duration) => new Promise((resolve) => setTimeout(resolve, duration));
@@ -16,7 +17,7 @@ const MOVE_STEP_DELAY = 600;
 const MAX_MOVE_DURATION = MOVE_STEP_DELAY * 6;
 const CARD_DRAW_DELAY = 1300;
 const EFFECT_DELAY = 1000;
-const AUTO_ACTION_TIMEOUT = 10000;
+const AUTO_ACTION_TIMEOUT = 20000;
 const movementStepDelay = (stepCount) => Math.min(MOVE_STEP_DELAY, MAX_MOVE_DURATION / Math.max(1, stepCount));
 
 function loadGame() {
@@ -27,6 +28,12 @@ export default function App() {
   const [names, setNames] = useState(['玩家 1', '玩家 2']);
   const [game, setGame] = useState(loadGame);
   const [confirmRestart, setConfirmRestart] = useState(false);
+  const [remote, setRemote] = useState(null);
+  const remoteSessionRef = useRef(null);
+  const remoteRoleRef = useRef(null);
+  const remotePlayerIdRef = useRef(null);
+  const remotePlayersRef = useRef([]);
+  const remoteCommandRef = useRef(() => {});
     const [paused, setPaused] = useState(false);
     const logPausedRef = useRef(false);
   const [animation, setAnimation] = useState({ active: false, rolling: false, revealing: false, moving: false, dice: null });
@@ -45,12 +52,38 @@ export default function App() {
   const commitWithAutoTurn = (next) => setGame(next);
 
   const startGame = () => {
-    const next = createGame(names);
+    startGameWithNames(names);
+  };
+
+  const startGameWithNames = (gameNames) => {
+    const next = createGame(gameNames);
     previousMoney.current = Object.fromEntries(next.players.map((player) => [player.id, player.money]));
     setMoneyEffects([]);
     setMoneyPulses({});
     setPaused(false);
     setGame(next);
+  };
+
+  const handleRemoteMessage = (message) => {
+    if (message.type === 'state' && remoteRoleRef.current === 'guest') setGame(message.game);
+    if (message.type === 'players' && remoteRoleRef.current === 'host') { remotePlayersRef.current = message.players; setRemote((current) => current ? { ...current, players: message.players, ready: message.players.length > 1, status: message.players.length > 1 ? '玩家已加入，可以开始' : '等待家人加入' } : current); }
+    if (message.type === 'start' && remoteRoleRef.current === 'guest') setGame(message.game);
+    if (message.type === 'command' && remoteRoleRef.current === 'host' && message.playerId === 1) remoteCommandRef.current(message.command);
+  };
+
+  const handleHost = (roomName, hostName) => {
+    remoteRoleRef.current = 'host';
+    const session = connectRoom({ roomName, nickname: hostName, onMessage: handleRemoteMessage, onOpen: () => setRemote((current) => ({ ...current, status: '房间已创建，等待家人加入', ready: false })), onClose: () => setRemote((current) => current ? { ...current, status: '房间连接已断开' } : current) });
+    remoteSessionRef.current = session;
+    setRemote({ role: 'host', roomName, hostName, ready: false, status: '正在连接房间', onStart: () => { const playerNames = [hostName, ...remotePlayersRef.current.filter((player) => player.playerId !== 0).map((player) => player.name)]; const next = createGame(playerNames); startGameWithNames(playerNames); session.send({ type: 'start', game: next }); } });
+  };
+
+  const handleJoin = (roomName, guestName) => {
+    remoteRoleRef.current = 'guest';
+    const session = connectRoom({ roomName, nickname: guestName, onMessage: handleRemoteMessage, onOpen: () => setRemote((current) => ({ ...current, status: '已进入房间，等待房主开始' })), onClose: () => setRemote((current) => current ? { ...current, status: '房间连接已断开' } : current) });
+    remoteSessionRef.current = session;
+    remotePlayerIdRef.current = 1;
+    setRemote({ role: 'guest', roomName, guestName, status: '正在加入房间' });
   };
 
   const animatePropertyAction = async (type) => {
@@ -142,6 +175,10 @@ export default function App() {
   }, [game]);
 
   useEffect(() => {
+    if (remoteRoleRef.current === 'host' && game) remoteSessionRef.current?.send({ type: 'state', game });
+  }, [game]);
+
+  useEffect(() => {
     if (!game) { previousMoney.current = {}; return undefined; }
     const changes = game.players.flatMap((player) => {
       const previous = previousMoney.current[player.id];
@@ -204,6 +241,20 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [game, paused, animation.active, confirmRestart]);
 
+  remoteCommandRef.current = (command) => {
+    if (remoteRoleRef.current !== 'host') return;
+    if (command.type === 'roll') void animateRoll();
+    if (command.type === 'buy') void animatePropertyAction('buy');
+    if (command.type === 'build') void animatePropertyAction('build');
+    if (command.type === 'end') apply(endTurn);
+    if (command.type === 'release') apply((current) => releaseFromJail(current, command.method));
+    if (command.type === 'draw') void animateCardDraw();
+    if (command.type === 'mechanismRoll') void animateMechanismRoll();
+    if (command.type === 'resolve') void executeEffect();
+    if (command.type === 'sellBuilding') apply((current) => sellBuilding(current, command.position));
+    if (command.type === 'sellProperty') apply((current) => sellProperty(current, command.position));
+  };
+
   useEffect(() => {
     if (!game || paused || animation.active || game.phase !== 'action' || hasOptionalPropertyAction(game)) return undefined;
     setGame((current) => current === game ? endTurn(current) : current);
@@ -249,7 +300,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [game, paused, animation.active, confirmRestart]);
 
-  if (!game) return <SetupScreen names={names} setNames={setNames} onStart={startGame} />;
+  if (!game) return <SetupScreen names={names} setNames={setNames} onStart={startGame} onHost={handleHost} onJoin={handleJoin} remote={remote} />;
 
   const restart = () => {
     setGame(null);
@@ -265,10 +316,17 @@ export default function App() {
   const activePlayerId = game.players[game.current].id;
   const ranking = [...game.players].sort((left, right) => totalAssets(right) - totalAssets(left));
   const ranks = new Map(ranking.map((player, index) => [player.id, index + 1]));
+  const remoteInvoke = (command, localAction) => {
+    if (remoteRoleRef.current === 'guest') {
+      if (game.players[game.current]?.id !== remotePlayerIdRef.current) return;
+      remoteSessionRef.current?.send({ type: 'command', playerId: remotePlayerIdRef.current, command });
+    }
+    else localAction();
+  };
   return <main className="game-shell">
     <div className="player-strip" style={{ '--player-count': game.players.length }}>{game.players.map((player) => <PlayerPanel key={player.id} player={player} active={player.id === activePlayerId} rank={ranks.get(player.id)} moneyPulse={moneyPulses[player.id]} />)}</div>
     <div className="game-layout">
-      <Board game={game} displayPositions={displayPositions} animation={animation} actionFeedback={actionFeedback} paused={paused} onTogglePause={() => setPaused((value) => !value)} onLogOpen={() => { if (!paused) { logPausedRef.current = true; setPaused(true); } }} onLogClose={() => { if (logPausedRef.current) { logPausedRef.current = false; setPaused(false); } }} onRestart={() => setConfirmRestart(true)} onRoll={animateRoll} onBuy={() => animatePropertyAction('buy')} onBuild={() => animatePropertyAction('build')} onEnd={() => apply(endTurn)} onRelease={(method) => apply((current) => releaseFromJail(current, method))} onDraw={animateCardDraw} onMechanismRoll={animateMechanismRoll} onResolve={executeEffect} onSellBuilding={(position) => apply((current) => sellBuilding(current, position))} onSellProperty={(position) => apply((current) => sellProperty(current, position))} />
+      <Board game={game} displayPositions={displayPositions} animation={animation} actionFeedback={actionFeedback} paused={paused} onTogglePause={() => setPaused((value) => !value)} onLogOpen={() => { if (!paused) { logPausedRef.current = true; setPaused(true); } }} onLogClose={() => { if (logPausedRef.current) { logPausedRef.current = false; setPaused(false); } }} onRestart={() => setConfirmRestart(true)} onRoll={() => remoteInvoke({ type: 'roll' }, animateRoll)} onBuy={() => remoteInvoke({ type: 'buy' }, () => animatePropertyAction('buy'))} onBuild={() => remoteInvoke({ type: 'build' }, () => animatePropertyAction('build'))} onEnd={() => remoteInvoke({ type: 'end' }, () => apply(endTurn))} onRelease={(method) => remoteInvoke({ type: 'release', method }, () => apply((current) => releaseFromJail(current, method)))} onDraw={() => remoteInvoke({ type: 'draw' }, animateCardDraw)} onMechanismRoll={() => remoteInvoke({ type: 'mechanismRoll' }, animateMechanismRoll)} onResolve={() => remoteInvoke({ type: 'resolve' }, executeEffect)} onSellBuilding={(position) => remoteInvoke({ type: 'sellBuilding', position }, () => apply((current) => sellBuilding(current, position)))} onSellProperty={(position) => remoteInvoke({ type: 'sellProperty', position }, () => apply((current) => sellProperty(current, position)))} />
     </div>
     {confirmRestart && <div className="modal-layer"><section className="modal-card confirm-card"><span className="kicker">重新开局</span><h2>放弃当前进度？</h2><p>当前棋局和本地存档都会被清除，此操作无法撤销。</p><div className="confirm-actions"><button className="ghost-button" onClick={() => setConfirmRestart(false)}>取消</button><button className="danger-button" onClick={restart}>确认重新开局</button></div></section></div>}
     <div className="money-fx-layer" aria-hidden="true">{moneyEffects.map((effect) => <span className={effect.delta > 0 ? 'is-gain' : 'is-loss'} style={{ '--money-x': `${effect.targetX - window.innerWidth / 2}px`, '--money-y': `${effect.targetY - window.innerHeight / 2}px`, '--money-offset': `${effect.offset}px` }} key={effect.id}>{effect.delta > 0 ? '+' : '-'}{money(Math.abs(effect.delta))}</span>)}</div>
