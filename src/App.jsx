@@ -64,8 +64,22 @@ export default function App() {
     setGame(next);
   };
 
+  const updateDisplayPosition = (playerId, position) => {
+    setDisplayPositions((current) => ({ ...current, [playerId]: position }));
+    if (remoteRoleRef.current === 'host') remoteSessionRef.current?.send({ type: 'movement', movingPlayerId: playerId, position });
+  };
+
+  const clearDisplayPositions = () => {
+    setDisplayPositions({});
+    if (remoteRoleRef.current === 'host') remoteSessionRef.current?.send({ type: 'movement', position: null });
+  };
+
   const handleRemoteMessage = (message) => {
     if (message.type === 'state' && remoteRoleRef.current === 'guest') setGame(message.game);
+    if (message.type === 'movement' && remoteRoleRef.current === 'guest') {
+      if (message.position === null) setDisplayPositions({});
+      else setDisplayPositions((current) => ({ ...current, [message.movingPlayerId]: message.position }));
+    }
     if (message.type === 'joined' || message.type === 'players') {
       if (message.type === 'joined') {
         remotePlayerIdRef.current = message.playerId;
@@ -136,11 +150,11 @@ export default function App() {
     const path = createMovementPath(player.position, dice, finalPosition, next.lastCard?.action);
     setAnimation({ active: true, rolling: false, revealing: false, moving: true, movementKind: 'dice', dice });
     for (const position of path) {
-      setDisplayPositions((current) => ({ ...current, [player.id]: position }));
+      updateDisplayPosition(player.id, position);
       await wait(movementStepDelay(path.length));
     }
     await commitWithAutoTurn(next);
-    setDisplayPositions({});
+    clearDisplayPositions();
     setAnimation({ active: false, rolling: false, revealing: false, moving: false, dice });
   };
 
@@ -179,12 +193,12 @@ export default function App() {
       const path = createMovementPath(player.position, 0, finalPosition, pending.card?.action);
       setAnimation({ active: true, rolling: false, revealing: false, moving: true, movementKind: 'card', dice: game.dice });
       for (const position of path) {
-        setDisplayPositions((current) => ({ ...current, [player.id]: position }));
+        updateDisplayPosition(player.id, position);
         await wait(movementStepDelay(path.length));
       }
     }
     await commitWithAutoTurn(next);
-    setDisplayPositions({});
+    clearDisplayPositions();
     setAnimation({ active: false, rolling: false, revealing: false, moving: false, dice: game.dice });
   };
 

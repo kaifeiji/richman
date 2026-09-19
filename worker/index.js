@@ -41,7 +41,7 @@ export class RichmanRoom {
       try { message = JSON.parse(event.data); } catch { return; }
       const sender = this.clients.get(server);
       if (!sender) return;
-      if (message.type === 'signal' || message.type === 'state' || message.type === 'command' || message.type === 'start') {
+      if (message.type === 'signal' || message.type === 'state' || message.type === 'command' || message.type === 'start' || message.type === 'movement') {
         this.broadcast({ ...message, playerId: sender.playerId }, server);
       }
     });
