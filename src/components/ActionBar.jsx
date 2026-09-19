@@ -4,8 +4,9 @@ import { buildingLevel, currentPlayer, hasBuildingsOn, hasOptionalPropertyAction
 import { money } from '../game/format';
 import DiceFace from './DiceFace';
 
-export default function ActionBar({ game, animation, paused = false, onRoll, onBuy, onBuild, onEnd, onRelease, onDraw, onMechanismRoll, onResolve }) {
+export default function ActionBar({ game, animation, paused = false, canAct = true, onRoll, onBuy, onBuild, onEnd, onRelease, onDraw, onMechanismRoll, onResolve }) {
   const animating = animation.active || paused;
+  const disabled = animating || !canAct;
   const player = currentPlayer(game);
   const tile = BOARD[player.position];
   const owner = ownerOf(game, tile.id);
@@ -50,17 +51,17 @@ export default function ActionBar({ game, animation, paused = false, onRoll, onB
         </div>}
       </div>}
     {hasActionButtons && <div className="action-buttons">
-      {game.phase === 'roll' && !player.jailed && <button className="primary-button action-aggressive dice-button" onClick={onRoll} disabled={animating} aria-label="掷骰出发"><Dice5 /></button>}
+      {game.phase === 'roll' && !player.jailed && <button className="primary-button action-aggressive dice-button" onClick={onRoll} disabled={disabled} aria-label="掷骰出发"><Dice5 /></button>}
       {game.phase === 'roll' && player.jailed && <>
-        {player.jailFreeCards > 0 && <button className="secondary-button action-conservative" onClick={() => onRelease('card')} disabled={animating}><TicketCheck />使用获释卡</button>}
-        <button className="ghost-button action-conservative" onClick={() => onRelease('accept')} disabled={animating}>跳过本回合</button>
+        {player.jailFreeCards > 0 && <button className="secondary-button action-conservative" onClick={() => onRelease('card')} disabled={disabled}><TicketCheck />使用获释卡</button>}
+        <button className="ghost-button action-conservative" onClick={() => onRelease('accept')} disabled={disabled}>跳过本回合</button>
       </>}
-      {game.phase === 'resolve' && game.pendingEffect?.type === 'drawCard' && <button className="primary-button action-aggressive confirm-button" onClick={onDraw} disabled={animating} aria-label="确认"><Check /></button>}
-      {game.phase === 'resolve' && game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null && <button className="primary-button action-aggressive dice-button" onClick={onMechanismRoll} disabled={animating} aria-label="机制掷骰"><Dice5 /></button>}
-      {game.phase === 'resolve' && game.pendingEffect?.type !== 'drawCard' && (!game.pendingEffect?.requiresRoll || game.pendingEffect.specialRoll !== null) && <button className="primary-button action-aggressive confirm-button" onClick={onResolve} disabled={animating}><Check /></button>}
-      {canBuy && <button className="secondary-button action-aggressive" onClick={onBuy}><WalletCards />买</button>}
-      {canBuild && <button className="secondary-button action-aggressive" onClick={onBuild}><Building2 />盖 {level + 1} 层楼 {money(tile.buildCost)}</button>}
-      {game.phase === 'action' && hasChoice && <button className="ghost-button action-conservative" onClick={onEnd}><Flag />结束回合</button>}
+      {game.phase === 'resolve' && game.pendingEffect?.type === 'drawCard' && <button className="primary-button action-aggressive confirm-button" onClick={onDraw} disabled={disabled} aria-label="确认"><Check /></button>}
+      {game.phase === 'resolve' && game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null && <button className="primary-button action-aggressive dice-button" onClick={onMechanismRoll} disabled={disabled} aria-label="机制掷骰"><Dice5 /></button>}
+      {game.phase === 'resolve' && game.pendingEffect?.type !== 'drawCard' && (!game.pendingEffect?.requiresRoll || game.pendingEffect.specialRoll !== null) && <button className="primary-button action-aggressive confirm-button" onClick={onResolve} disabled={disabled}><Check /></button>}
+      {canBuy && <button className="secondary-button action-aggressive" onClick={onBuy} disabled={disabled}><WalletCards />买</button>}
+      {canBuild && <button className="secondary-button action-aggressive" onClick={onBuild} disabled={disabled}><Building2 />盖 {level + 1} 层楼 {money(tile.buildCost)}</button>}
+      {game.phase === 'action' && hasChoice && <button className="ghost-button action-conservative" onClick={onEnd} disabled={disabled}><Flag />结束回合</button>}
     </div>}
   </section>;
 }

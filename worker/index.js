@@ -15,6 +15,7 @@ export class RichmanRoom {
   constructor(state) {
     this.state = state;
     this.clients = new Map();
+    this.started = false;
   }
 
   fetch(request) {
@@ -24,6 +25,11 @@ export class RichmanRoom {
     const url = new URL(request.url);
     const name = url.searchParams.get('name') || '玩家';
     server.accept();
+    if (this.started) {
+      server.send(JSON.stringify({ type: 'game-started' }));
+      server.close(1008, 'game started');
+      return new Response(null, { status: 101, webSocket: client });
+    }
     const playerId = this.clients.size;
     if (playerId >= 4) {
       server.send(JSON.stringify({ type: 'room-full' }));
@@ -41,7 +47,20 @@ export class RichmanRoom {
       try { message = JSON.parse(event.data); } catch { return; }
       const sender = this.clients.get(server);
       if (!sender) return;
-      if (message.type === 'signal' || message.type === 'state' || message.type === 'command' || message.type === 'start' || message.type === 'movement') {
+      if (message.type === 'start') {
+        if (!sender.host) return;
+        this.started = true;
+        this.broadcast({ ...message, playerId: sender.playerId }, server);
+      }
+      if (message.type === 'state' || message.type === 'movement') {
+        if (!sender.host) return;
+        this.broadcast({ ...message, playerId: sender.playerId }, server);
+      }
+      if (message.type === 'command') {
+        if (sender.host) return;
+        this.broadcast({ ...message, playerId: sender.playerId }, server);
+      }
+      if (message.type === 'signal') {
         this.broadcast({ ...message, playerId: sender.playerId }, server);
       }
     });

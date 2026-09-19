@@ -41,7 +41,7 @@ function pieceOffset(index, count) {
   return layouts[count]?.[index] || [0, 0];
 }
 
-export default function Board({ game, displayPositions, animation, actionFeedback, paused, onTogglePause, onLogOpen, onLogClose, onRestart, onRoll, onBuy, onBuild, onEnd, onRelease, onDraw, onMechanismRoll, onResolve, onSellBuilding, onSellProperty }) {
+export default function Board({ game, displayPositions, animation, actionFeedback, paused, canAct, onTogglePause, onLogOpen, onLogClose, onRestart, onRoll, onBuy, onBuild, onEnd, onRelease, onDraw, onMechanismRoll, onResolve, onSellBuilding, onSellProperty }) {
   const boardRef = useRef(null);
   const [showLog, setShowLog] = useState(false);
   const [countryTip, setCountryTip] = useState(null);
@@ -132,8 +132,8 @@ export default function Board({ game, displayPositions, animation, actionFeedbac
             {game.phase === 'liquidate' && game.pendingDebt
               ? <LiquidationCard game={game} onSellBuilding={onSellBuilding} onSellProperty={onSellProperty} />
               : game.pendingEffect && !(animation.rolling || animation.revealing)
-              ? <><MechanismCard pending={game.pendingEffect} animating={animation.active} /><ActionBar game={game} animation={animation} paused={paused} onRoll={onRoll} onBuy={onBuy} onBuild={onBuild} onEnd={onEnd} onRelease={onRelease} onDraw={onDraw} onMechanismRoll={onMechanismRoll} onResolve={onResolve} /></>
-              : <ActionBar game={game} animation={animation} paused={paused} onRoll={onRoll} onBuy={onBuy} onBuild={onBuild} onEnd={onEnd} onRelease={onRelease} onDraw={onDraw} onMechanismRoll={onMechanismRoll} onResolve={onResolve} />}
+              ? <><MechanismCard pending={game.pendingEffect} animating={animation.active} /><ActionBar game={game} animation={animation} paused={paused} canAct={canAct} onRoll={onRoll} onBuy={onBuy} onBuild={onBuild} onEnd={onEnd} onRelease={onRelease} onDraw={onDraw} onMechanismRoll={onMechanismRoll} onResolve={onResolve} /></>
+              : <ActionBar game={game} animation={animation} paused={paused} canAct={canAct} onRoll={onRoll} onBuy={onBuy} onBuild={onBuild} onEnd={onEnd} onRelease={onRelease} onDraw={onDraw} onMechanismRoll={onMechanismRoll} onResolve={onResolve} />}
             {actionFeedback && <div className="feedback-overlay"><ActionFeedback feedback={actionFeedback} /></div>}
           </div>
         </div>
