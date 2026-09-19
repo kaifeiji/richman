@@ -5,6 +5,8 @@
 	color: #18322d;
 	background: #e7eee8;
 	font-synthesis: none;
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
 	--ink: #18322d;
 	--paper: #fffdf7;
 	--red: #d94b3d;
