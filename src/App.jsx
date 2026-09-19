@@ -65,7 +65,10 @@ export default function App() {
     return next;
   });
 
-  const commitWithAutoTurn = (next) => setGame(next);
+  const commitWithAutoTurn = (next) => {
+    setGame(next);
+    if (remoteRoleRef.current === 'host') remoteSessionRef.current?.send({ type: 'state', game: next });
+  };
 
   const startGame = () => {
     startGameWithNames(names);
