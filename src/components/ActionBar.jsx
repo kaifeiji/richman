@@ -18,7 +18,7 @@ export default function ActionBar({ game, animation, paused = false, canAct = tr
   let description = tile.name;
   if (animation.moving) { title = '移动中'; description = ''; }
   else if (animation.rolling) { title = '掷骰中'; description = ''; }
-  else if (animating && game.phase === 'roll') { title = `${animation.dice} 点`; description = ''; }
+  else if (animation.active && game.phase === 'roll') { title = `${animation.dice} 点`; description = ''; }
   else if (game.phase === 'roll') { title = player.jailed ? `${player.name} 被逮捕` : `轮到 ${player.name} 了`; description = player.jailed ? player.jailFreeCards > 0 ? '下回合使用获释卡或跳过本回合' : '本回合自动跳过' : '按 Enter 掷骰出发'; }
   else if (game.pendingEffect?.type === 'drawCard') { title = game.pendingEffect.kind === 'chance' ? '机会来了' : '发生大事件'; description = ''; }
   else if (game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null) { title = '再次掷骰'; description = game.pendingEffect.text; }
