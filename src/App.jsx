@@ -207,7 +207,7 @@ export default function App() {
 
   const animateCardDraw = async () => {
     if (game?.pendingEffect?.type !== 'drawCard' || animation.active) return;
-    setAnimation({ active: true, rolling: false, revealing: false, moving: false, dice: game.dice });
+    setSyncedAnimation({ active: true, rolling: false, revealing: false, moving: false, dice: game.dice });
     await wait(CARD_DRAW_DELAY);
     setGame(drawPendingCard(game));
     setAnimation({ active: false, rolling: false, revealing: false, moving: false, dice: game.dice });
@@ -224,7 +224,7 @@ export default function App() {
     await wait(EFFECT_DELAY);
     if (finalPosition !== player.position) {
       const path = createMovementPath(player.position, 0, finalPosition, pending.card?.action);
-      setAnimation({ active: true, rolling: false, revealing: false, moving: true, movementKind: 'card', dice: game.dice });
+      setSyncedAnimation({ active: true, rolling: false, revealing: false, moving: true, movementKind: 'card', dice: game.dice });
       for (const position of path) {
         updateDisplayPosition(player.id, position);
         await wait(movementStepDelay(path.length));
@@ -232,7 +232,7 @@ export default function App() {
     }
     await commitWithAutoTurn(next);
     clearDisplayPositions();
-    setAnimation({ active: false, rolling: false, revealing: false, moving: false, dice: game.dice });
+    setSyncedAnimation({ active: false, rolling: false, revealing: false, moving: false, dice: game.dice });
   };
 
   useEffect(() => {
