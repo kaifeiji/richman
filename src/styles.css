@@ -16,7 +16,7 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 0; min-height: 100dvh; overflow: hidden; background: radial-gradient(circle at 30% 0%, #fffdf7 0 15%, transparent 42%), repeating-linear-gradient(135deg, rgba(24, 50, 45, .035) 0 1px, transparent 1px 9px), #e3ebe4; }
+body { margin: 0; min-width: 1024px; min-height: 100dvh; overflow: hidden; background: radial-gradient(circle at 30% 0%, #fffdf7 0 15%, transparent 42%), repeating-linear-gradient(135deg, rgba(24, 50, 45, .035) 0 1px, transparent 1px 9px), #e3ebe4; }
 button, input { font: inherit; }
 button { color: inherit; }
 button:focus-visible, input:focus-visible { outline: 3px solid #e9a72e; outline-offset: 2px; }
@@ -247,7 +247,7 @@ button svg { width: 18px; height: 18px; }
 .feed-item { position: relative; padding: 9px 0 9px 15px; border-bottom: 1px solid #e1e6e1; color: #50655e; font-size: .72rem; line-height: 1.45; text-align: left; }
 .feed-item i { position: absolute; left: 0; top: 14px; width: 6px; height: 6px; border-radius: 50%; }
 
-.central-play-card { position: relative; width: 100%; height: min(100%, 52cqh); min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); justify-self: stretch; align-self: center; box-shadow: 7px 7px 0 rgba(25,70,61,.16); }
+.central-play-card { position: relative; width: 100%; height: 420px; min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); justify-self: stretch; align-self: center; box-shadow: 7px 7px 0 rgba(25,70,61,.16); }
 .play-card-body { position: relative; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); overflow: visible; }
 .play-card-body.has-mechanism { min-height: 0; grid-template-rows: minmax(0, 1fr) 72px; overflow: visible; }
 .play-card-body.has-liquidation { display: block; }
@@ -341,51 +341,15 @@ button svg { width: 18px; height: 18px; }
 }
 
 @media (max-width: 700px) {
-	body { overflow: auto; }
-	.game-shell { height: auto; min-height: 100dvh; padding: 1.5cqh 1.5cqw; gap: 1.2cqh; overflow: visible; }
-	.player-strip { gap: 1cqw; }
-	.player-panel { min-height: 12cqh; grid-template-columns: 8cqh minmax(0, 1fr); gap: 1cqw; padding: 1cqh 1cqw; }
-	.avatar { width: 8cqh; height: 8cqh; border-width: max(1px, .35cqh); font-size: .85rem; }
-	.player-stat-grid { margin-right: 3cqw; }
-	.player-stat { padding: .3cqh .5cqw; gap: 0 .4cqw; }
-	.player-stat > svg { width: 2.8cqh; height: 2.8cqh; }
-	.player-stat span, .player-money span { font-size: .45rem; }
-	.player-stat b, .player-money b { font-size: .66rem; }
-	.game-layout { height: auto; aspect-ratio: 1.35; }
-	.board-wrap { height: 100%; margin: 0; padding: .4cqh .4cqw; }
-	.board { min-width: 0; height: 100%; padding: .6cqh; border-width: max(1px, .25cqh); }
-	.tile { padding: .4cqh .4cqw .8cqh; }
-	.tile::before { height: .6cqh; }
-	.tile strong { font-size: clamp(.48rem, 1.8cqh, .72rem); }
-	.tile small { font-size: clamp(.32rem, 1.15cqh, .46rem); }
-	.tile-icon { top: .8cqh; right: .7cqw; }
-	.tile-icon svg { width: 2.8cqh; height: 2.8cqh; }
-	.tile-owner-avatar { top: .8cqh; left: .7cqw; width: 3.2cqh; height: 3.2cqh; border-width: max(1px, .2cqh); font-size: .38rem; }
-	.game-piece { width: 6.5cqh; height: 6.5cqh; }
-	.piece-core { border-width: max(1px, .35cqh); font-size: .62rem; }
-	.board-center { margin: 3cqh 2cqw; padding: 1cqh; grid-template-columns: minmax(20cqw, 3fr) minmax(0, 7fr); gap: 1cqw; }
-	.board-title h1 { margin: .4cqh 0; font-size: clamp(1rem, 5cqh, 1.45rem); }
-	.board-title span { font-size: .38rem; }
-	.round-counter { margin-top: .8cqh; font-size: .6rem; }
-	.board-tools { margin-top: 1cqh; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: .4cqh 1cqw; }
-	.board-tools button { min-height: 3cqh; font-size: .45rem; }
-	.central-play-card { height: 100%; box-shadow: .7cqh .7cqh 0 rgba(25,70,61,.16); }
-	.operation-status { gap: .8cqh; padding: .8cqh; }
-	.operation-heading h2 { font-size: clamp(.85rem, 3.6cqh, 1.2rem); }
-	.property-progress { gap: .4cqw; }
-	.property-progress span { padding: .4cqh .2cqw; gap: .2cqh; }
-	.property-progress i { width: 3.8cqh; height: 3.8cqh; font-size: .45rem; }
-	.property-progress svg { width: 2cqh; height: 2cqh; }
-	.property-progress b { font-size: .42rem; }
-	.action-buttons, .mechanism-card + .card-actions .action-buttons { min-height: 8cqh; height: 8cqh; }
-	.action-buttons button, .card-actions .action-buttons button { min-height: 8cqh; font-size: .62rem; }
-	.action-dice { width: 9cqh; height: 9cqh; }
-	.action-dice .dice-face { width: 8cqh; height: 8cqh; padding: 1.2cqh; gap: .6cqh; }
-	.action-dice .dice-face i { width: 1.2cqh; height: 1.2cqh; }
-	.dice-button svg, .confirm-button svg { width: 4cqh; height: 4cqh; }
-	.mechanism-card { padding: 1cqh; }
-	.mechanism-icon { width: 4.5cqh; height: 4.5cqh; margin: .5cqh 0; }
-	.mechanism-card h2 { font-size: .95rem; }
-	.mechanism-card p { margin-top: .3cqh; font-size: .62rem; }
-	.setup-panel { padding: 6cqw; box-shadow: 2cqw 2cqw 0 #1b6659; }
+	.game-shell { padding: 10px; }
+	.board-wrap { margin: 0 -10px; padding-left: 10px; }
+	.board { min-width: 760px; }
+	.board-center { padding: 22px; }
+	.game-side { grid-template-columns: 1fr; grid-template-rows: auto 280px; }
+	.setup-panel { padding: 28px 22px; box-shadow: 8px 8px 0 #1b6659; }
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+	body { overflow: auto; touch-action: pan-x pan-y; }
+	.game-shell { height: auto; min-height: max(100dvh, 1024px); overflow: visible; }
 }
