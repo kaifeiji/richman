@@ -291,13 +291,13 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!game || remoteRoleRef.current || paused || animation.active || game.phase !== 'action' || hasOptionalPropertyAction(game)) return undefined;
+    if (!game || remoteRoleRef.current === 'guest' || paused || animation.active || game.phase !== 'action' || hasOptionalPropertyAction(game)) return undefined;
     setGame((current) => current === game ? endTurn(current) : current);
     return undefined;
   }, [game, paused, animation.active]);
 
   useEffect(() => {
-    if (!game || remoteRoleRef.current || paused || animation.active || game.phase !== 'roll') return undefined;
+    if (!game || remoteRoleRef.current === 'guest' || paused || animation.active || game.phase !== 'roll') return undefined;
     const player = game.players[game.current];
     if (!player.jailed) return undefined;
     if (player.jailFreeCards > 0) return undefined;
