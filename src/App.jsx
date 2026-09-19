@@ -10,6 +10,8 @@ import { createMovementPath } from './game/movement';
 import { connectRoom } from './remote/room';
 
 const STORAGE_KEY = 'richman-local-game-v1';
+const REMOTE_SESSION_KEY = 'richman-remote-session-v1';
+const REMOTE_CLIENT_KEY = 'richman-remote-client-v1';
 const wait = (duration) => new Promise((resolve) => setTimeout(resolve, duration));
 const ROLL_TIMING = [80, 80, 90, 90, 100, 110, 120, 140, 160, 190, 220];
 const DICE_REVEAL_DELAY = 1700;
@@ -24,6 +26,19 @@ function loadGame() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; }
 }
 
+function remoteClientId() {
+  let id = localStorage.getItem(REMOTE_CLIENT_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(REMOTE_CLIENT_KEY, id);
+  }
+  return id;
+}
+
+function loadRemoteSession() {
+  try { return JSON.parse(localStorage.getItem(REMOTE_SESSION_KEY)); } catch { return null; }
+}
+
 export default function App() {
   const [names, setNames] = useState(['玩家 1', '玩家 2']);
   const [game, setGame] = useState(loadGame);
@@ -32,6 +47,7 @@ export default function App() {
   const remoteSessionRef = useRef(null);
   const remoteRoleRef = useRef(null);
   const remotePlayerIdRef = useRef(null);
+  const remoteClientIdRef = useRef(remoteClientId());
   const remotePlayersRef = useRef([]);
   const remoteCommandRef = useRef(() => {});
     const [paused, setPaused] = useState(false);
@@ -75,7 +91,7 @@ export default function App() {
   };
 
   const handleRemoteMessage = (message) => {
-    if (message.type === 'state' && remoteRoleRef.current === 'guest') setGame(message.game);
+    if (message.type === 'state' && remoteRoleRef.current) setGame(message.game);
     if (message.type === 'movement' && remoteRoleRef.current === 'guest') {
       if (message.position === null) setDisplayPositions({});
       else setDisplayPositions((current) => ({ ...current, [message.movingPlayerId]: message.position }));
@@ -97,7 +113,7 @@ export default function App() {
       });
     }
     if (message.type === 'room-full') setRemote((current) => current ? { ...current, status: '房间已满，最多 4 位玩家', error: true } : current);
-    if (message.type === 'game-started') setRemote((current) => current ? { ...current, status: '游戏已开始，无法加入此房间', error: true } : current);
+    if (message.type === 'game-started') { localStorage.removeItem(REMOTE_SESSION_KEY); setRemote((current) => current ? { ...current, status: '游戏已开始，无法加入此房间', error: true } : current); }
     if (message.type === 'start' && remoteRoleRef.current === 'guest') setGame(message.game);
     if (message.type === 'command' && remoteRoleRef.current === 'host') remoteCommandRef.current(message.command, message.playerId);
   };
@@ -106,7 +122,8 @@ export default function App() {
     remoteRoleRef.current = null;
     remotePlayerIdRef.current = null;
     remotePlayersRef.current = [];
-    const session = connectRoom({ roomName, nickname: playerName, onMessage: handleRemoteMessage, onOpen: () => setRemote((current) => ({ ...current, status: '已连接，正在进入房间' })), onClose: () => setRemote((current) => current ? current.error ? current : { ...current, status: '房间连接已断开，请返回后重试', error: true } : current), onError: () => setRemote((current) => current ? { ...current, status: '无法连接信令服务，请检查网络后重试', error: true } : current) });
+    localStorage.setItem(REMOTE_SESSION_KEY, JSON.stringify({ roomName, playerName }));
+    const session = connectRoom({ roomName, nickname: playerName, clientId: remoteClientIdRef.current, onMessage: handleRemoteMessage, onOpen: () => setRemote((current) => ({ ...current, status: '已连接，正在恢复房间' })), onClose: () => setRemote((current) => current ? current.error ? current : { ...current, status: '房间连接已断开，请刷新后重连', error: true } : current), onError: () => setRemote((current) => current ? { ...current, status: '无法连接信令服务，请检查网络后重试', error: true } : current) });
     remoteSessionRef.current = session;
     setRemote({ role: 'joining', roomName, playerName, players: [], ready: false, status: '正在连接房间', onStart: () => { const playerNames = remotePlayersRef.current.map((player) => player.name); const next = createGame(playerNames); startGameWithNames(playerNames); session.send({ type: 'start', game: next }); } });
   };
@@ -117,8 +134,14 @@ export default function App() {
     remoteRoleRef.current = null;
     remotePlayerIdRef.current = null;
     remotePlayersRef.current = [];
+    localStorage.removeItem(REMOTE_SESSION_KEY);
     setRemote(null);
   };
+
+  useEffect(() => {
+    const session = loadRemoteSession();
+    if (session?.roomName && session?.playerName) handleEnterRoom(session.roomName, session.playerName);
+  }, []);
 
   const animatePropertyAction = async (type) => {
     if (!game || animation.active || game.phase !== 'action') return;
@@ -339,6 +362,7 @@ export default function App() {
   if (!game) return <SetupScreen names={names} setNames={setNames} onStart={startGame} onEnterRoom={handleEnterRoom} onLeaveRoom={leaveRemoteRoom} remote={remote} />;
 
   const restart = () => {
+    leaveRemoteRoom();
     setGame(null);
     setPaused(false);
     setConfirmRestart(false);
