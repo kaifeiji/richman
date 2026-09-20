@@ -258,6 +258,11 @@ button svg { width: 18px; height: 18px; }
 .card-actions.no-actions { grid-template-rows: minmax(0, 1fr); }
 .operation-status { min-height: 0; padding: 22px 26px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
 .operation-status { min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.operation-heading h2 { font-size: 1.35rem; }
+.property-progress b { font-size: .86rem; }
+.stay-fees span { font-size: .7rem; }
+.stay-fees b { font-size: .82rem; }
+.card-actions .action-buttons button { font-size: 1.12rem; }
 .card-actions .operation-status { border: 2px solid color-mix(in srgb, var(--active-player-color) 45%, white); background: color-mix(in srgb, var(--active-player-color) 12%, white); color: color-mix(in srgb, var(--active-player-color) 82%, #18322d); }
 .card-actions .operation-status .operation-heading p { color: color-mix(in srgb, var(--active-player-color) 68%, #52675f); }
 .operation-status.dice-only { display: grid; place-items: center; }

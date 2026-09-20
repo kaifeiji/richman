@@ -82,13 +82,13 @@ function moveBy(game, playerId, amount, reward = START_REWARD) {
   return next;
 }
 
-function moveTo(game, playerId, position, passReward = 0) {
+function moveTo(game, playerId, position) {
   const player = playerById(game, playerId);
   let next = updatePlayer(game, playerId, { position });
-  if (position < player.position && passReward > 0) {
+  if (position < player.position) {
     const moved = playerById(next, playerId);
-    next = updatePlayer(next, playerId, { money: moved.money + passReward });
-    next = addLog(next, `${player.name} 经过出发，领取 ¥${passReward.toLocaleString('zh-CN')}。`);
+    next = updatePlayer(next, playerId, { money: moved.money + START_REWARD });
+    next = addLog(next, `${player.name} 经过出发，领取 ¥${START_REWARD.toLocaleString('zh-CN')}。`);
   }
   return next;
 }
@@ -102,9 +102,9 @@ function applyCard(game, playerId, card) {
     const amount = action.min + Math.floor(Math.random() * (Math.floor((action.max - action.min) / action.step) + 1)) * action.step;
     next = addLog(updatePlayer(next, playerId, { money: player.money + amount }), `${player.name} 抓到 ¥${amount.toLocaleString('zh-CN')}。`);
   }
-  if (action.type === 'move') next = moveBy(next, playerId, action.amount, 0);
-  if (action.type === 'moveTo') next = moveTo(next, playerId, 0, action.reward);
-  if (action.type === 'moveToCountry') next = moveTo(next, playerId, BOARD_INDEX_BY_COUNTRY[action.country], action.passReward);
+  if (action.type === 'move') next = moveBy(next, playerId, action.amount);
+  if (action.type === 'moveTo') next = moveTo(next, playerId, 0);
+  if (action.type === 'moveToCountry') next = moveTo(next, playerId, BOARD_INDEX_BY_COUNTRY[action.country]);
   if (action.type === 'keepJailFree') next = updatePlayer(next, playerId, { jailFreeCards: player.jailFreeCards + 1 });
   if (action.type === 'repair') next = settlePayment(next, playerId, null, totalBuildings(player) * action.amount, '支付房屋维修费');
   if (action.type === 'collectEach') for (const other of activePlayers(next).filter((item) => item.id !== playerId)) next = settlePayment(next, other.id, playerId, action.amount, `向 ${player.name} 支付生日礼金`);

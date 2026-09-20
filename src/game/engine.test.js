@@ -97,6 +97,26 @@ test('awards money when landing exactly on start', () => {
   assert.equal(game.players[0].money, 28000);
 });
 
+test('awards money when a movement card passes start', () => {
+  const game = resolvePending({
+    ...gameAt(37),
+    phase: 'resolve',
+    pendingEffect: { type: 'card', playerId: 0, card: { title: '前进', action: { type: 'move', amount: 5 } } },
+  });
+  assert.equal(game.players[0].position, 2);
+  assert.equal(game.players[0].money, 28000);
+});
+
+test('awards money when a card lands exactly on start', () => {
+  const game = resolvePending({
+    ...gameAt(12),
+    phase: 'resolve',
+    pendingEffect: { type: 'card', playerId: 0, card: { title: '返回出发', action: { type: 'moveTo', target: 'start', reward: 0 } } },
+  });
+  assert.equal(game.players[0].position, 0);
+  assert.equal(game.players[0].money, 28000);
+});
+
 test('draws a chance card', () => {
   const landed = rollDice(gameAt(7), 1);
   assert.equal(landed.pendingEffect.type, 'drawCard');
