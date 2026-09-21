@@ -19,7 +19,8 @@ const MOVE_STEP_DELAY = 600;
 const MAX_MOVE_DURATION = MOVE_STEP_DELAY * 6;
 const CARD_DRAW_DELAY = 1300;
 const EFFECT_DELAY = 1000;
-const AUTO_ACTION_TIMEOUT = 20000;
+const AUTO_ACTION_TIMEOUT = 30000;
+const ARREST_DISPLAY_TIMEOUT = 2000;
 const movementStepDelay = (stepCount) => Math.min(MOVE_STEP_DELAY, MAX_MOVE_DURATION / Math.max(1, stepCount));
 
 function loadGame() {
@@ -311,7 +312,7 @@ export default function App() {
         if (salePosition === undefined) return;
         apply((current) => sale.type === 'building' ? sellBuilding(current, salePosition) : sellProperty(current, salePosition));
       }
-    }, AUTO_ACTION_TIMEOUT);
+    }, game.phase === 'resolve' && game.pendingEffect?.type === 'card' && game.pendingEffect.card?.action?.type === 'arrest' ? ARREST_DISPLAY_TIMEOUT : AUTO_ACTION_TIMEOUT);
     return () => clearTimeout(timer);
   }, [game, paused, animation.active, confirmRestart]);
 
@@ -354,15 +355,15 @@ export default function App() {
     const handleKeyDown = (event) => {
       if (event.repeat || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
       if (remoteRoleRef.current && game.players[game.current]?.id !== remotePlayerIdRef.current) return;
-      const isRollKey = event.key === 'Enter';
-      const isPropertyKey = event.key === '+' || event.code === 'NumpadAdd';
-      if (!isRollKey && !isPropertyKey) return;
+      const isConfirmKey = event.code === 'Space';
+      const isPropertyKey = event.key === 'Alt';
+      if (!isConfirmKey && !isPropertyKey) return;
       event.preventDefault();
-      if (isRollKey && game.phase === 'resolve' && game.pendingEffect?.type === 'drawCard') void animateCardDraw();
-      else if (isRollKey && game.phase === 'resolve' && game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null) void animateMechanismRoll();
-      else if (isRollKey && game.phase === 'resolve') void executeEffect();
-      else if (isRollKey && game.phase === 'roll' && !game.players[game.current].jailed) void animateRoll();
-      else if (isRollKey && game.phase === 'action') apply(endTurn);
+      if (isConfirmKey && game.phase === 'resolve' && game.pendingEffect?.type === 'drawCard') void animateCardDraw();
+      else if (isConfirmKey && game.phase === 'resolve' && game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null) void animateMechanismRoll();
+      else if (isConfirmKey && game.phase === 'resolve') void executeEffect();
+      else if (isConfirmKey && game.phase === 'roll' && !game.players[game.current].jailed) void animateRoll();
+      else if (isConfirmKey && game.phase === 'action') apply(endTurn);
       else if (isPropertyKey && game.phase === 'roll' && game.players[game.current].jailed && game.players[game.current].jailFreeCards > 0) apply((current) => releaseFromJail(current, 'card'));
       else if (isPropertyKey && game.phase === 'action') {
         const player = game.players[game.current];

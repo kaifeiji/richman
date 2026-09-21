@@ -14,6 +14,7 @@ export default function ActionBar({ game, animation, paused = false, canAct = tr
   const canBuy = !animating && game.phase === 'action' && tile.type === 'property' && !owner && !hasBuildingsOn(game, tile.id) && player.money >= tile.ownership;
   const canBuild = !animating && game.phase === 'action' && !game.builtThisTurn && tile.type === 'property' && owner?.id === player.id && level < 3 && player.money >= tile.buildCost;
   const hasChoice = hasOptionalPropertyAction(game);
+  const isArrestResolution = game.pendingEffect?.type === 'card' && game.pendingEffect.card?.action?.type === 'arrest';
   let title = '等待操作';
   let description = tile.name;
   if (animation.moving) { title = '移动中'; description = ''; }
@@ -37,11 +38,11 @@ export default function ActionBar({ game, animation, paused = false, canAct = tr
   const showDice = animation.rolling || animation.revealing || (animation.moving && animation.movementKind === 'dice');
   const mechanismMode = Boolean(game.pendingEffect);
   const hasActionButtons = !showDice && ((game.phase === 'roll' && (!player.jailed || player.jailFreeCards > 0))
-    || (game.phase === 'resolve' && (game.pendingEffect?.type === 'drawCard' || (game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null) || game.pendingEffect?.type !== 'drawCard'))
+    || (game.phase === 'resolve' && !isArrestResolution && (game.pendingEffect?.type === 'drawCard' || (game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null) || game.pendingEffect?.type !== 'drawCard'))
     || canBuy || canBuild || (game.phase === 'action' && hasChoice));
   return <section className={`card-actions ${showDice ? 'has-dice' : ''} ${!hasActionButtons ? 'no-actions' : ''} ${mechanismMode ? 'is-mechanism-actions' : ''}`}>
     {showDice ? <div className="operation-status dice-only"><div className={`action-dice ${animation.rolling ? 'is-rolling' : ''}`}><DiceFace value={animation.dice ?? 1} /></div></div> : !mechanismMode && <div className="operation-status">
-        <div className="operation-heading"><h2>{title}</h2></div>
+        <div className="operation-heading"><h2>{title}</h2>{description && <p>{description}</p>}</div>
         {(canBuy || canBuild) && <div className={`property-progress ${canBuy ? 'is-buying' : 'is-building'}`}>
           {['土地', '1 层', '2 层', '3 层'].map((label, index) => {
             const completed = canBuild && index <= level;
@@ -58,9 +59,9 @@ export default function ActionBar({ game, animation, paused = false, canAct = tr
       </>}
       {game.phase === 'resolve' && game.pendingEffect?.type === 'drawCard' && <button className="primary-button action-aggressive confirm-button" onClick={onDraw} disabled={disabled} aria-label="确认"><Check /></button>}
       {game.phase === 'resolve' && game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null && <button className="primary-button action-aggressive dice-button" onClick={onMechanismRoll} disabled={disabled} aria-label="机制掷骰"><Dice5 /></button>}
-      {game.phase === 'resolve' && game.pendingEffect?.type !== 'drawCard' && (!game.pendingEffect?.requiresRoll || game.pendingEffect.specialRoll !== null) && <button className="primary-button action-aggressive confirm-button" onClick={onResolve} disabled={disabled}><Check /></button>}
+      {game.phase === 'resolve' && !isArrestResolution && game.pendingEffect?.type !== 'drawCard' && (!game.pendingEffect?.requiresRoll || game.pendingEffect.specialRoll !== null) && <button className="primary-button action-aggressive confirm-button" onClick={onResolve} disabled={disabled}><Check /></button>}
       {canBuy && <button className="secondary-button action-aggressive" onClick={onBuy} disabled={disabled}><WalletCards />买</button>}
-      {canBuild && <button className="secondary-button action-aggressive" onClick={onBuild} disabled={disabled}><Building2 />盖 {level + 1} 层楼 {money(tile.buildCost)}</button>}
+      {canBuild && <button className="secondary-button action-aggressive" onClick={onBuild} disabled={disabled}><Building2 />盖 {level + 1} 层楼</button>}
       {game.phase === 'action' && hasChoice && <button className="ghost-button action-conservative" onClick={onEnd} disabled={disabled}><Flag />结束回合</button>}
     </div>}
   </section>;

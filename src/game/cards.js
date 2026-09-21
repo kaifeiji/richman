@@ -22,7 +22,7 @@ const eventCards = [
   ['所得退税', '获得 ¥2000。', { type: 'money', amount: 2000 }],
   ['支付学费', '支付 ¥2000。', { type: 'money', amount: -2000 }],
   ['旅游基金到期', '收取 ¥1000。', { type: 'money', amount: 1000 }],
-  ['被逮捕', '前往逮捕格，并支付罚款 ¥2000。', { type: 'arrest', fine: 2000 }],
+  ['被逮捕', '留在原地停止行动，并支付罚款 ¥2000。', { type: 'arrest', fine: 2000 }],
   ['破坏公共财物', '罚款 ¥2000。', { type: 'money', amount: -2000 }],
   ['世界美食大赛', '获得一等奖奖金 ¥2000。', { type: 'money', amount: 2000 }],
   ['免费获释', '保留此卡，可在被逮捕时使用。', { type: 'keepJailFree' }],

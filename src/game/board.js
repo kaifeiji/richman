@@ -47,4 +47,4 @@ export const BOARD_INDEX_BY_COUNTRY = Object.fromEntries(
   BOARD.filter((tile) => tile.type === 'property').map((tile) => [tile.countryId, tile.id]),
 );
 
-export const PLAYER_COLORS = ['#d94b3d', '#e2a72c', '#3f83b3', '#34845d'];
+ export const PLAYER_COLORS = ['#4f7bd9', '#9568c7', '#3f83b3', '#34845d'];

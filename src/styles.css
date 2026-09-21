@@ -149,10 +149,10 @@ button svg { width: 18px; height: 18px; }
 @keyframes dice-tumble { from { transform: rotate(-7deg) scale(.94); } to { transform: rotate(7deg) scale(1.06); } }
 .board-title { text-align: center; }
 .round-counter { margin-left: auto; margin-right: auto; }
-.board-tools { margin-top: 18px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.board-tools button { min-height: 30px; padding: 0; border: 0; background: transparent; cursor: pointer; color: #52675f; font-size: .78rem; font-weight: 800; }
+.board-tools { margin-top: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.board-tools button { min-width: 148px; min-height: 42px; padding: 0 14px; border: 1px solid #b9c8bd; background: rgba(255,253,247,.82); cursor: pointer; color: #31584e; font-size: 1.05rem; font-weight: 900; line-height: 1; box-shadow: 0 2px 0 rgba(24,50,45,.12); }
 .board-tools button:disabled { opacity: 1; color: #52675f; cursor: not-allowed; }
-.board-tools button:hover:not(:disabled), .board-tools button:focus-visible { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+.board-tools button:hover:not(:disabled), .board-tools button:focus-visible { border-color: var(--ink); background: #fffdf7; color: var(--ink); box-shadow: 0 3px 0 rgba(24,50,45,.2); }
 .board-title { position: static; }
 .journey-popover { position: fixed; z-index: 300; top: 0; right: 0; width: 380px; height: 100dvh; border-left: 2px solid #81968b; background: #fffdf7; box-shadow: -12px 0 30px rgba(18,42,35,.3); }
 .journey-popover .event-panel { height: 100%; border: 0; }
@@ -254,11 +254,9 @@ button svg { width: 18px; height: 18px; }
 .play-card-body > .country-card, .play-card-body > .special-detail, .play-card-body > .mechanism-card, .play-card-body > .card-actions, .play-card-body > .liquidation-card { width: 100%; min-width: 0; }
 .play-card-body > .country-card, .play-card-body > .special-detail, .play-card-body > .mechanism-card { box-shadow: none; }
 .play-card-body > .mechanism-card { min-width: 0; min-height: 0; height: 100%; overflow: visible; }
-.card-actions { position: relative; min-height: 0; height: 100%; padding: 0; display: grid; grid-template-rows: minmax(0, 1fr) 72px; gap: 0; border: 2px solid var(--active-player-color); background: color-mix(in srgb, var(--active-player-color) 5%, white); }
+.card-actions { position: relative; min-height: 0; height: 100%; padding: 0; display: grid; grid-template-rows: minmax(0, 1fr) 72px; gap: 0; border: 2px solid var(--active-player-color); background: color-mix(in srgb, var(--active-player-color) 5%, white); overflow: hidden; }
 .card-actions.no-actions { grid-template-rows: minmax(0, 1fr); }
-.operation-status { min-height: 0; padding: 22px 26px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
-.operation-status { min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
-.operation-heading h2 { font-size: 1.35rem; }
+.operation-status { min-height: 0; padding: 16px 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; overflow: hidden; text-align: center; }
 .property-progress b { font-size: .86rem; }
 .stay-fees span { font-size: .7rem; }
 .stay-fees b { font-size: .82rem; }
@@ -277,16 +275,16 @@ button svg { width: 18px; height: 18px; }
 .mechanism-card + .card-actions { min-width: 0; height: 72px; min-height: 72px; padding: 0; display: block; border-top: 0; box-shadow: none; overflow: visible; }
 .mechanism-card + .card-actions .action-buttons { height: 72px; align-items: center; }
 .card-actions:empty { display: none; }
-.operation-heading { width: 100%; display: grid; place-items: center; text-align: center; }
-.operation-heading h2 { margin: 0; font: 900 clamp(2.2rem, 3.2vw, 3.5rem)/1.15 'Noto Serif SC', serif; }
+.operation-heading { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.operation-heading h2 { margin: 0; font: 900 clamp(1.8rem, 3vw, 3.2rem)/1.12 'Noto Serif SC', serif; }
 .card-actions:has(.operation-heading h2) .operation-heading h2 { letter-spacing: 0; }
-.operation-heading p { margin: 0; color: #51665e; font-size: 1rem; font-weight: 800; }
+.operation-heading p { max-width: 100%; margin: 0; color: #51665e; font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 900; line-height: 1.25; overflow-wrap: anywhere; }
 .property-progress { width: min(100%, 480px); display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-.property-progress span { position: relative; min-width: 0; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; border: 1px solid #ccd5cf; background: #edf0ec; color: #76847e; }
+.property-progress span { position: relative; min-width: 0; padding: 11px 4px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 1px solid #ccd5cf; background: #edf0ec; color: #76847e; }
 .property-progress span:not(:last-child)::after { content: ''; position: absolute; z-index: 2; top: 50%; right: -5px; width: 6px; height: 2px; background: #aebbb3; }
-.property-progress i { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: #d4dbd6; font-size: .72rem; font-style: normal; font-weight: 900; }
-.property-progress svg { width: 13px; height: 13px; }
-.property-progress b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .7rem; }
+.property-progress i { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: #d4dbd6; font-size: 1rem; font-style: normal; font-weight: 900; }
+.property-progress svg { width: 21px; height: 21px; }
+.property-progress b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.15rem; line-height: 1.1; }
 .property-progress .is-complete { border-color: #6ca38c; background: #e4f1e8; color: #26644f; }
 .property-progress .is-complete i { background: #34845d; color: white; }
 .property-progress .is-current { border-color: #d39a22; background: #fff1bd; color: #4b390d; box-shadow: inset 0 -4px 0 #e2a72c; }
@@ -322,12 +320,13 @@ button svg { width: 18px; height: 18px; }
 .asset-sale-row span { color: #71817a; font-size: .65rem; }
 .asset-sale-row button { min-height: 36px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; border: 0; background: #e2a72c; color: #302500; cursor: pointer; font-size: .7rem; font-weight: 900; }
 .asset-sale-row button svg { width: 15px; height: 15px; }
-.card-actions .action-buttons button { min-height: 50px; font-size: 1rem; }
+.card-actions .action-buttons button { min-width: 0; min-height: 0; height: 72px; padding: 0 12px; overflow: hidden; white-space: nowrap; font-size: clamp(1rem, 1.4vw, 1.2rem); line-height: 1.15; }
 .mechanism-card + .card-actions .operation-heading h2 { font-size: 1.7rem; }
-.mechanism-card + .card-actions .operation-heading p { font-size: .88rem; }
-.action-buttons { min-height: 72px; padding: 0; display: grid; grid-template-columns: 1fr; align-items: stretch; gap: 0; border-top: 2px solid var(--active-player-color); background: color-mix(in srgb, var(--active-player-color) 8%, white); }
+ .mechanism-card + .card-actions .operation-heading p { margin-top: 4px; font-size: 1rem; }
+.action-buttons { min-height: 72px; height: 72px; padding: 0; display: grid; grid-template-columns: 1fr; align-items: stretch; gap: 0; border-top: 2px solid var(--active-player-color); background: color-mix(in srgb, var(--active-player-color) 8%, white); }
 .action-buttons:has(> button:nth-child(2):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.action-buttons button { min-width: 0; min-height: 72px; height: 100%; box-shadow: none; }
+.action-buttons button { box-shadow: none; }
+.action-buttons button svg { flex: 0 0 auto; width: 34px; height: 34px; }
 .action-buttons .action-aggressive { background: color-mix(in srgb, var(--active-player-color) 78%, #18322d); color: white; box-shadow: inset 0 -4px 0 color-mix(in srgb, var(--active-player-color) 55%, #10251f); }
 .action-buttons .action-conservative { border: 0; background: color-mix(in srgb, var(--active-player-color) 20%, white); color: color-mix(in srgb, var(--active-player-color) 78%, #18322d); }
 

@@ -114,7 +114,28 @@ test('awards money when a card lands exactly on start', () => {
     pendingEffect: { type: 'card', playerId: 0, card: { title: '返回出发', action: { type: 'moveTo', target: 'start', reward: 0 } } },
   });
   assert.equal(game.players[0].position, 0);
+  assert.equal(game.players[0].money, 26000);
+});
+
+test('uses the card-specific reward when travelling to a country', () => {
+  const game = resolvePending({
+    ...gameAt(37),
+    phase: 'resolve',
+    pendingEffect: { type: 'card', playerId: 0, card: { title: '去埃及旅行', action: { type: 'moveToCountry', country: 'egypt', passReward: 2000 } } },
+  });
+  assert.equal(game.players[0].position, 9);
   assert.equal(game.players[0].money, 28000);
+});
+
+test('keeps the player in place when an event card causes arrest', () => {
+  const game = resolvePending({
+    ...gameAt(12),
+    phase: 'resolve',
+    pendingEffect: { type: 'card', playerId: 0, card: { title: '被逮捕', action: { type: 'arrest', fine: 2000 } } },
+  });
+  assert.equal(game.players[0].position, 12);
+  assert.equal(game.players[0].money, 24000);
+  assert.equal(game.players[0].jailed, true);
 });
 
 test('draws a chance card', () => {

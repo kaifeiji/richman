@@ -82,13 +82,13 @@ function moveBy(game, playerId, amount, reward = START_REWARD) {
   return next;
 }
 
-function moveTo(game, playerId, position) {
+function moveTo(game, playerId, position, reward = START_REWARD) {
   const player = playerById(game, playerId);
   let next = updatePlayer(game, playerId, { position });
   if (position < player.position) {
     const moved = playerById(next, playerId);
-    next = updatePlayer(next, playerId, { money: moved.money + START_REWARD });
-    next = addLog(next, `${player.name} 经过出发，领取 ¥${START_REWARD.toLocaleString('zh-CN')}。`);
+    next = updatePlayer(next, playerId, { money: moved.money + reward });
+    if (reward > 0) next = addLog(next, `${player.name} 经过出发，领取 ¥${reward.toLocaleString('zh-CN')}。`);
   }
   return next;
 }
@@ -103,13 +103,13 @@ function applyCard(game, playerId, card) {
     next = addLog(updatePlayer(next, playerId, { money: player.money + amount }), `${player.name} 抓到 ¥${amount.toLocaleString('zh-CN')}。`);
   }
   if (action.type === 'move') next = moveBy(next, playerId, action.amount);
-  if (action.type === 'moveTo') next = moveTo(next, playerId, 0);
-  if (action.type === 'moveToCountry') next = moveTo(next, playerId, BOARD_INDEX_BY_COUNTRY[action.country]);
+  if (action.type === 'moveTo') next = moveTo(next, playerId, 0, action.reward ?? START_REWARD);
+  if (action.type === 'moveToCountry') next = moveTo(next, playerId, BOARD_INDEX_BY_COUNTRY[action.country], action.passReward ?? START_REWARD);
   if (action.type === 'keepJailFree') next = updatePlayer(next, playerId, { jailFreeCards: player.jailFreeCards + 1 });
   if (action.type === 'repair') next = settlePayment(next, playerId, null, totalBuildings(player) * action.amount, '支付房屋维修费');
   if (action.type === 'collectEach') for (const other of activePlayers(next).filter((item) => item.id !== playerId)) next = settlePayment(next, other.id, playerId, action.amount, `向 ${player.name} 支付生日礼金`);
   if (action.type === 'arrest') {
-    next = settlePayment(moveTo(next, playerId, 25), playerId, null, action.fine, '支付逮捕罚款');
+    next = settlePayment(next, playerId, null, action.fine, '支付逮捕罚款');
     if (!playerById(next, playerId).bankrupt) next = updatePlayer(next, playerId, { jailed: true });
   }
   if (next.phase === 'liquidate' || next.phase === 'gameover') return next;
