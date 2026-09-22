@@ -111,10 +111,10 @@ test('awards money when a card lands exactly on start', () => {
   const game = resolvePending({
     ...gameAt(12),
     phase: 'resolve',
-    pendingEffect: { type: 'card', playerId: 0, card: { title: '返回出发', action: { type: 'moveTo', target: 'start', reward: 0 } } },
+    pendingEffect: { type: 'card', playerId: 0, card: { title: '返回出发', action: { type: 'moveTo', target: 'start', reward: 2000 } } },
   });
   assert.equal(game.players[0].position, 0);
-  assert.equal(game.players[0].money, 26000);
+  assert.equal(game.players[0].money, 28000);
 });
 
 test('uses the card-specific reward when travelling to a country', () => {
@@ -127,7 +127,7 @@ test('uses the card-specific reward when travelling to a country', () => {
   assert.equal(game.players[0].money, 28000);
 });
 
-test('keeps the player in place when an event card causes arrest', () => {
+test('charges an arrest event fine without stopping future turns', () => {
   const game = resolvePending({
     ...gameAt(12),
     phase: 'resolve',
@@ -135,7 +135,31 @@ test('keeps the player in place when an event card causes arrest', () => {
   });
   assert.equal(game.players[0].position, 12);
   assert.equal(game.players[0].money, 24000);
+  assert.equal(game.players[0].jailed, false);
+  assert.equal(game.players[0].skipTurns, 0);
+});
+
+test('board arrest stops two turns and suspends fees only while arrested', () => {
+  const base = createGame(['甲', '乙']);
+  let game = {
+    ...base,
+    phase: 'resolve',
+    pendingEffect: { type: 'arrest', playerId: 0, title: '逮捕', text: '停止 2 回合' },
+    players: base.players.map((player) => player.id === 0 ? { ...player, position: 25, properties: [1] } : player),
+  };
+  game = resolvePending(game);
   assert.equal(game.players[0].jailed, true);
+  assert.equal(game.players[0].skipTurns, 2);
+  assert.equal(currentFees(game, BOARD[1]).passFee, 0);
+
+  game = endTurn(game);
+  game = endTurn({ ...game, phase: 'action' });
+  assert.equal(game.players[0].skipTurns, 1);
+  assert.equal(game.players[0].jailed, true);
+  game = endTurn({ ...game, phase: 'action' });
+  assert.equal(game.players[0].skipTurns, 0);
+  assert.equal(game.players[0].jailed, false);
+  assert.equal(currentFees(game, BOARD[1]).passFee, 500);
 });
 
 test('draws a chance card', () => {
@@ -238,6 +262,21 @@ test('suspends fees while an owner is arrested but not in the harbor', () => {
   assert.equal(currentFees(harbor, BOARD[1]).stayFee, 1800);
   const visitingHarborOwner = { ...harbor, current: 1, players: harbor.players.map((player) => player.id === 1 ? { ...player, position: 0 } : player) };
   const chargedVisit = resolvePending(rollDice(visitingHarborOwner, 1));
+  assert.equal(chargedVisit.players[0].money, 27800);
+  assert.equal(chargedVisit.players[1].money, 24200);
+});
+
+test('continues charging fees while an owner is paused by a closed market', () => {
+  const base = createGame(['甲', '乙']);
+  const pausedOwner = {
+    ...base,
+    current: 1,
+    players: base.players.map((player) => player.id === 0
+      ? { ...player, properties: [1], buildings: { 1: 1 }, skipTurns: 1, jailed: false }
+      : { ...player, position: 0 }),
+  };
+  assert.equal(currentFees(pausedOwner, BOARD[1]).stayFee, 1800);
+  const chargedVisit = resolvePending(rollDice(pausedOwner, 1));
   assert.equal(chargedVisit.players[0].money, 27800);
   assert.equal(chargedVisit.players[1].money, 24200);
 });

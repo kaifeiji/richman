@@ -18,11 +18,11 @@ const chanceCards = [
 
 const eventCards = [
   ['旅游攻略', '收取咨询费 ¥1200。', { type: 'money', amount: 1200 }],
-  ['返回出发', '前进到出发。', { type: 'moveTo', target: 'start', reward: 0 }],
+  ['返回出发', '前进到出发，领取 ¥2000。', { type: 'moveTo', target: 'start', reward: 2000 }],
   ['所得退税', '获得 ¥2000。', { type: 'money', amount: 2000 }],
   ['支付学费', '支付 ¥2000。', { type: 'money', amount: -2000 }],
   ['旅游基金到期', '收取 ¥1000。', { type: 'money', amount: 1000 }],
-  ['被逮捕', '留在原地停止行动，并支付罚款 ¥2000。', { type: 'arrest', fine: 2000 }],
+  ['被逮捕', '支付罚款 ¥2000。', { type: 'arrest', fine: 2000 }],
   ['破坏公共财物', '罚款 ¥2000。', { type: 'money', amount: -2000 }],
   ['世界美食大赛', '获得一等奖奖金 ¥2000。', { type: 'money', amount: 2000 }],
   ['免费获释', '保留此卡，可在被逮捕时使用。', { type: 'keepJailFree' }],

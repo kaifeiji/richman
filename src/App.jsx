@@ -20,8 +20,11 @@ const MAX_MOVE_DURATION = MOVE_STEP_DELAY * 6;
 const CARD_DRAW_DELAY = 1300;
 const EFFECT_DELAY = 1000;
 const AUTO_ACTION_TIMEOUT = 30000;
-const ARREST_DISPLAY_TIMEOUT = 2000;
 const movementStepDelay = (stepCount) => Math.min(MOVE_STEP_DELAY, MAX_MOVE_DURATION / Math.max(1, stepCount));
+const kidMoneyParam = Number(new URLSearchParams(window.location.search).get('kid'));
+const kidStartingMoney = new URLSearchParams(window.location.search).has('kid') && Number.isFinite(kidMoneyParam) && kidMoneyParam >= 0
+  ? kidMoneyParam
+  : undefined;
 
 function loadGame() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; }
@@ -77,7 +80,7 @@ export default function App() {
   };
 
   const startGameWithNames = (gameNames) => {
-    const next = createGame(gameNames);
+    const next = createGame(gameNames, kidStartingMoney);
     previousMoney.current = Object.fromEntries(next.players.map((player) => [player.id, player.money]));
     setMoneyEffects([]);
     setMoneyPulses({});
@@ -143,7 +146,7 @@ export default function App() {
     localStorage.setItem(REMOTE_SESSION_KEY, JSON.stringify({ roomName, playerName }));
     const session = connectRoom({ roomName, nickname: playerName, clientId: remoteClientIdRef.current, onMessage: handleRemoteMessage, onOpen: () => setRemote((current) => ({ ...current, status: '已连接，正在恢复房间' })), onClose: () => setRemote((current) => current ? current.error ? current : { ...current, status: '房间连接已断开，请刷新后重连', error: true } : current), onError: () => setRemote((current) => current ? { ...current, status: '无法连接信令服务，请检查网络后重试', error: true } : current) });
     remoteSessionRef.current = session;
-    setRemote({ role: 'joining', roomName, playerName, players: [], ready: false, status: '正在连接房间', onStart: () => { const playerNames = remotePlayersRef.current.map((player) => player.name); const next = createGame(playerNames); startGameWithNames(playerNames); session.send({ type: 'start', game: next }); } });
+    setRemote({ role: 'joining', roomName, playerName, players: [], ready: false, status: '正在连接房间', onStart: () => { const playerNames = remotePlayersRef.current.map((player) => player.name); const next = createGame(playerNames, kidStartingMoney); startGameWithNames(playerNames); session.send({ type: 'start', game: next }); } });
   };
 
   const leaveRemoteRoom = () => {
@@ -312,7 +315,7 @@ export default function App() {
         if (salePosition === undefined) return;
         apply((current) => sale.type === 'building' ? sellBuilding(current, salePosition) : sellProperty(current, salePosition));
       }
-    }, game.phase === 'resolve' && game.pendingEffect?.type === 'card' && game.pendingEffect.card?.action?.type === 'arrest' ? ARREST_DISPLAY_TIMEOUT : AUTO_ACTION_TIMEOUT);
+    }, AUTO_ACTION_TIMEOUT);
     return () => clearTimeout(timer);
   }, [game, paused, animation.active, confirmRestart]);
 

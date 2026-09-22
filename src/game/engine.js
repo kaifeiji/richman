@@ -8,11 +8,12 @@ const addLog = (game, message) => ({ ...game, log: [message, ...game.log] });
 const playerById = (game, id) => game.players.find((player) => player.id === id);
 const updatePlayer = (game, id, changes) => ({ ...game, players: game.players.map((player) => player.id === id ? { ...player, ...changes } : player) });
 
-export function createGame(names = ['玩家 1', '玩家 2']) {
+export function createGame(names = ['玩家 1', '玩家 2'], kidMoney = STARTING_MONEY) {
   const validNames = names.map((name) => name.trim()).filter(Boolean).slice(0, 4);
   if (validNames.length < 2) throw new Error('至少需要两名玩家');
+  const otherStartingMoney = Number.isFinite(kidMoney) && kidMoney >= 0 ? kidMoney : STARTING_MONEY;
   const players = validNames.map((name, id) => ({
-    id, name, color: PLAYER_COLORS[id], initials: name.slice(0, 1), money: STARTING_MONEY,
+    id, name, color: PLAYER_COLORS[id], initials: name.slice(0, 1), money: id === 0 ? STARTING_MONEY : otherStartingMoney,
     position: 0, properties: [], buildings: {}, jailFreeCards: 0, jailed: false, skipTurns: 0, bankrupt: false,
   }));
   return { players, current: 0, round: 1, turnCount: 1, phase: 'roll', dice: null, lastCard: null, pendingEffect: null, builtThisTurn: false, chanceCursor: 0, eventCursor: 0, winner: null, log: [`游戏开始，由 ${players[0].name} 先行动。`] };
@@ -110,7 +111,6 @@ function applyCard(game, playerId, card) {
   if (action.type === 'collectEach') for (const other of activePlayers(next).filter((item) => item.id !== playerId)) next = settlePayment(next, other.id, playerId, action.amount, `向 ${player.name} 支付生日礼金`);
   if (action.type === 'arrest') {
     next = settlePayment(next, playerId, null, action.fine, '支付逮捕罚款');
-    if (!playerById(next, playerId).bankrupt) next = updatePlayer(next, playerId, { jailed: true });
   }
   if (next.phase === 'liquidate' || next.phase === 'gameover') return next;
   if (['move', 'moveTo', 'moveToCountry'].includes(action.type) && !playerById(next, playerId).bankrupt) return queueLanding(next, playerId);
@@ -156,8 +156,8 @@ function queueLanding(game, playerId) {
   if (tile.type === 'market') {
     return { ...game, phase: 'resolve', pendingEffect: { type: 'market', playerId, requiresRoll: true, specialRoll: null, amount: null, title: '股市', text: '重新掷骰决定本次股市盈亏' } };
   }
-  if (tile.type === 'arrest') return { ...game, phase: 'resolve', pendingEffect: { type: 'arrest', playerId, title: '逮捕', text: '进入逮捕状态，下回合使用获释卡或跳过本回合' } };
-  if (tile.type === 'harbor') return { ...game, phase: 'resolve', pendingEffect: { type: 'harbor', playerId, title: '避风港', text: '风平浪静，安心停靠' } };
+  if (tile.type === 'arrest') return { ...game, phase: 'resolve', pendingEffect: { type: 'arrest', playerId, title: '逮捕', text: '进入逮捕状态，停止 2 回合；期间不收取地产费用' } };
+  if (tile.type === 'harbor') return { ...game, phase: 'resolve', pendingEffect: { type: 'harbor', playerId, title: '避风港', text: '安心停靠，停止 1 回合；地产仍正常收费' } };
   return { ...game, phase: 'action', pendingEffect: null };
 }
 
@@ -213,8 +213,8 @@ export function resolvePending(game) {
     if (pending.outcome === 'closed') next = addLog(updatePlayer(next, pending.playerId, { skipTurns: (player.skipTurns ?? 0) + 1 }), `${player.name} 遇到休市，将暂停一回合。`);
     else next = pending.amount < 0 ? settlePayment(next, pending.playerId, null, -pending.amount, '遭遇熊市') : addLog(updatePlayer(next, pending.playerId, { money: player.money + pending.amount }), `${player.name} 遇到牛市，领取 ¥${pending.amount.toLocaleString('zh-CN')}。`);
   }
-  if (pending.type === 'arrest') next = addLog(updatePlayer(next, pending.playerId, { jailed: true }), `${player.name} 被逮捕；下回合使用获释卡或跳过本回合。`);
-  if (pending.type === 'harbor') next = addLog(next, `${player.name} 在避风港安全停留。`);
+  if (pending.type === 'arrest') next = addLog(updatePlayer(next, pending.playerId, { jailed: true, skipTurns: (player.skipTurns ?? 0) + 2 }), `${player.name} 被逮捕，将停止 2 回合；期间不收取地产费用。`);
+  if (pending.type === 'harbor') next = addLog(updatePlayer(next, pending.playerId, { skipTurns: (player.skipTurns ?? 0) + 1 }), `${player.name} 在避风港停靠，将停止 1 回合；地产仍正常收费。`);
   return next.phase === 'liquidate' || next.phase === 'gameover' ? next : { ...next, phase: 'action' };
 }
 
@@ -278,8 +278,8 @@ export function buildProperty(game) {
 export function releaseFromJail(game, method, forcedDice) {
   const player = currentPlayer(game);
   if (game.phase !== 'roll' || !player.jailed) return game;
-  if (method === 'card' && player.jailFreeCards > 0) return addLog(updatePlayer(game, player.id, { jailed: false, jailFreeCards: player.jailFreeCards - 1 }), `${player.name} 使用免费获释卡。`);
-  if (method === 'accept') return addLog(updatePlayer({ ...game, phase: 'action' }, player.id, { jailed: false }), `${player.name} 选择跳过本回合。`);
+  if (method === 'card' && player.jailFreeCards > 0) return addLog(updatePlayer(game, player.id, { jailed: false, skipTurns: 0, jailFreeCards: player.jailFreeCards - 1 }), `${player.name} 使用免费获释卡。`);
+  if (method === 'accept') return addLog(updatePlayer({ ...game, phase: 'action' }, player.id, { jailed: false, skipTurns: 0 }), `${player.name} 选择跳过本回合。`);
   return game;
 }
 
@@ -303,8 +303,9 @@ export function endTurn(game) {
     if (candidate.bankrupt) continue;
     turnCount += 1;
     if ((candidate.skipTurns ?? 0) > 0) {
-      next = updatePlayer(next, candidate.id, { skipTurns: candidate.skipTurns - 1 });
-      next = addLog(next, `${candidate.name} 因休市暂停本回合。`);
+      const remainingTurns = candidate.skipTurns - 1;
+      next = updatePlayer(next, candidate.id, { skipTurns: remainingTurns, jailed: candidate.jailed && remainingTurns > 0 });
+      next = addLog(next, candidate.jailed ? `${candidate.name} 因逮捕暂停本回合${remainingTurns > 0 ? `，还需停止 ${remainingTurns} 回合` : '，现已恢复行动'}。` : `${candidate.name} 暂停本回合。`);
       continue;
     }
     return checkWinner({ ...next, current: nextIndex, round, turnCount, phase: 'roll', dice: null, lastCard: null, pendingEffect: null, builtThisTurn: false });
