@@ -45,6 +45,7 @@ export default function Board({ game, displayPositions, movingPlayerId, animatio
   const boardRef = useRef(null);
   const [showLog, setShowLog] = useState(false);
   const [countryTip, setCountryTip] = useState(null);
+  const [mechanismTip, setMechanismTip] = useState(null);
   const [focusLine, setFocusLine] = useState(null);
   const activePlayer = game.players[game.current];
   const focusPlayer = animation.moving && movingPlayerId !== null ? game.players.find((player) => player.id === movingPlayerId) || activePlayer : activePlayer;
@@ -102,8 +103,16 @@ export default function Board({ game, displayPositions, movingPlayerId, animatio
         return <div
           className={`tile tile-${tile.type} ${activePosition === tile.id ? 'tile-selected' : ''}`}
           style={{ ...boardPosition(tile.id), '--tile-accent': tile.regionColor || tile.color }} key={tile.id}
-          onMouseMove={tile.type === 'property' ? (event) => setCountryTip({ tile, x: Math.max(8, Math.min(event.clientX + 16, window.innerWidth - 354)), y: Math.max(8, Math.min(event.clientY + 16, window.innerHeight - 390)) }) : undefined}
-          onMouseLeave={tile.type === 'property' ? () => setCountryTip(null) : undefined}
+          onMouseMove={(event) => {
+            if (tile.type === 'property') {
+              setMechanismTip(null);
+              setCountryTip({ tile, x: Math.max(8, Math.min(event.clientX + 16, window.innerWidth - 354)), y: Math.max(8, Math.min(event.clientY + 16, window.innerHeight - 390)) });
+            } else {
+              setCountryTip(null);
+              setMechanismTip({ tile, x: Math.max(8, Math.min(event.clientX + 16, window.innerWidth - 326)), y: Math.max(8, Math.min(event.clientY + 16, window.innerHeight - 190)) });
+            }
+          }}
+          onMouseLeave={() => { setCountryTip(null); setMechanismTip(null); }}
         >
           {owner && <span className="tile-owner-avatar" style={{ background: owner.color }}>{owner.initials}</span>}
           <span className="tile-icon">{TileIcon && <TileIcon />}</span>
@@ -146,13 +155,19 @@ export default function Board({ game, displayPositions, movingPlayerId, animatio
         const fees = currentFees(game, countryTip.tile);
         return <aside className="country-popper" style={{ left: countryTip.x, top: countryTip.y }}>
           <header style={{ borderColor: countryTip.tile.regionColor }}><div><strong>{countryTip.tile.name}</strong><small>{countryTip.tile.english} · {countryTip.tile.city}</small></div><span style={{ background: countryTip.tile.regionColor }}>{countryTip.tile.regionName}</span></header>
-          <div className="popper-owner">{owner ? <><i style={{ background: owner.color }} />{owner.name} 已购买 · {level ? `${level} 层房屋` : '暂无房屋'}{fees.completeRegion ? ' · 整区 ×2' : ''}</> : '尚无所有者 · 无房屋'}</div>
+          <div className="popper-owner">
+            <div className="popper-owner-details">{owner ? <><i style={{ background: owner.color }} />{owner.name} 已购买 · {level ? `${level} 层房屋` : '暂无房屋'}{fees.completeRegion ? ' · 整区 ×2' : ''}</> : '尚无所有者 · 无房屋'}{level === 0 && <> · 当前通关费 {money(fees.passFee)}</>}</div>
+            {level > 0 && <div className="popper-current"><span>当前住宿费</span><b>{money(fees.stayFee)}</b></div>}
+          </div>
           {fees.suspended && <div className="popper-suspended">所有者被逮捕，当前暂停收费</div>}
           <dl><div><dt>所有权</dt><dd>{money(countryTip.tile.ownership)}</dd></div><div><dt>盖房/层</dt><dd>{money(countryTip.tile.buildCost)}</dd></div><div><dt>基础通关费</dt><dd>{money(countryTip.tile.passFee)}</dd></div></dl>
-          <div className="popper-current"><span>当前通关费 <b>{money(fees.passFee)}</b></span><span>当前住宿费 <b>{money(fees.stayFee)}</b></span></div>
-          <div className="popper-stays">{countryTip.tile.stayFees.map((fee, index) => <span key={fee}>{index + 1} 层住宿 <b>{money(fee * fees.multiplier)}</b></span>)}</div>
+          <div className="popper-stays">{countryTip.tile.stayFees.map((fee, index) => <span key={fee}>{index + 1}层住宿费 <b>{money(fee * fees.multiplier)}</b></span>)}</div>
         </aside>;
       })()}
+      {mechanismTip && <aside className="mechanism-popper" style={{ left: mechanismTip.x, top: mechanismTip.y, '--tile-accent': mechanismTip.tile.color }}>
+        <header><strong>{mechanismTip.tile.name}</strong></header>
+        <p>{mechanismTip.tile.description}</p>
+      </aside>}
   </section>;
 }
 
@@ -167,3 +182,4 @@ const TILE_ICONS = {
   arrest: LockKeyhole,
   tax: Landmark,
 };
+

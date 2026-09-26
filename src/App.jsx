@@ -7,11 +7,8 @@ import { BOARD } from './game/board';
 import { buildProperty, buyProperty, createGame, drawPendingCard, endTurn, hasOptionalPropertyAction, ownerOf, releaseFromJail, resolvePending, rollDice, rollPendingEffect, sellBuilding, sellProperty, totalAssets } from './game/engine';
 import { money } from './game/format';
 import { createMovementPath } from './game/movement';
-import { connectRoom } from './remote/room';
 
 const STORAGE_KEY = 'richman-local-game-v1';
-const REMOTE_SESSION_KEY = 'richman-remote-session-v1';
-const REMOTE_CLIENT_KEY = 'richman-remote-client-v1';
 const wait = (duration) => new Promise((resolve) => setTimeout(resolve, duration));
 const ROLL_TIMING = [80, 80, 90, 90, 100, 110, 120, 140, 160, 190, 220];
 const DICE_REVEAL_DELAY = 1700;
@@ -30,30 +27,10 @@ function loadGame() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; }
 }
 
-function remoteClientId() {
-  let id = localStorage.getItem(REMOTE_CLIENT_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(REMOTE_CLIENT_KEY, id);
-  }
-  return id;
-}
-
-function loadRemoteSession() {
-  try { return JSON.parse(localStorage.getItem(REMOTE_SESSION_KEY)); } catch { return null; }
-}
-
 export default function App() {
   const [names, setNames] = useState(['玩家 1', '玩家 2']);
   const [game, setGame] = useState(loadGame);
   const [confirmRestart, setConfirmRestart] = useState(false);
-  const [remote, setRemote] = useState(null);
-  const remoteSessionRef = useRef(null);
-  const remoteRoleRef = useRef(null);
-  const remotePlayerIdRef = useRef(null);
-  const remoteClientIdRef = useRef(remoteClientId());
-  const remotePlayersRef = useRef([]);
-  const remoteCommandRef = useRef(() => {});
     const [paused, setPaused] = useState(false);
     const logPausedRef = useRef(false);
   const [animation, setAnimation] = useState({ active: false, rolling: false, revealing: false, moving: false, dice: null });
@@ -69,11 +46,6 @@ export default function App() {
     const next = action(current);
     return next;
   });
-
-  const commitWithAutoTurn = (next) => {
-    setGame(next);
-    if (remoteRoleRef.current === 'host') remoteSessionRef.current?.send({ type: 'state', game: next });
-  };
 
   const startGame = () => {
     startGameWithNames(names);
@@ -91,78 +63,12 @@ export default function App() {
   const updateDisplayPosition = (playerId, position) => {
     setDisplayPositions((current) => ({ ...current, [playerId]: position }));
     setMovingPlayerId(playerId);
-    if (remoteRoleRef.current === 'host') remoteSessionRef.current?.send({ type: 'movement', movingPlayerId: playerId, position });
   };
 
   const clearDisplayPositions = () => {
     setDisplayPositions({});
     setMovingPlayerId(null);
-    if (remoteRoleRef.current === 'host') remoteSessionRef.current?.send({ type: 'movement', position: null });
   };
-
-  const setSyncedAnimation = (next) => {
-    setAnimation(next);
-    if (remoteRoleRef.current === 'host') remoteSessionRef.current?.send({ type: 'animation', animation: next });
-  };
-
-  const handleRemoteMessage = (message) => {
-    if (message.type === 'state' && remoteRoleRef.current) setGame(message.game);
-    if (message.type === 'movement' && remoteRoleRef.current === 'guest') {
-      if (message.position === null) {
-        setDisplayPositions({});
-        setMovingPlayerId(null);
-      } else {
-        setDisplayPositions((current) => ({ ...current, [message.movingPlayerId]: message.position }));
-        setMovingPlayerId(message.movingPlayerId);
-      }
-    }
-    if (message.type === 'animation' && remoteRoleRef.current === 'guest') setAnimation(message.animation);
-    if (message.type === 'joined' || message.type === 'players') {
-      if (message.type === 'joined') {
-        remotePlayerIdRef.current = message.playerId;
-        remoteRoleRef.current = message.playerId === 0 ? 'host' : 'guest';
-      }
-      remotePlayersRef.current = message.players;
-      setRemote((current) => {
-        if (!current) return current;
-        const role = remoteRoleRef.current;
-        const ready = role === 'host' && message.players.length > 1;
-        const status = role === 'host'
-          ? ready ? '玩家已加入，可以开始游戏' : '房间已创建，等待玩家加入'
-          : '已进入房间，等待房主开始游戏';
-        return { ...current, role, players: message.players, ready, status };
-      });
-    }
-    if (message.type === 'room-full') setRemote((current) => current ? { ...current, status: '房间已满，最多 4 位玩家', error: true } : current);
-    if (message.type === 'game-started') { localStorage.removeItem(REMOTE_SESSION_KEY); setRemote((current) => current ? { ...current, status: '游戏已开始，无法加入此房间', error: true } : current); }
-    if (message.type === 'start' && remoteRoleRef.current === 'guest') setGame(message.game);
-    if (message.type === 'command' && remoteRoleRef.current === 'host') remoteCommandRef.current(message.command, message.playerId);
-  };
-
-  const handleEnterRoom = (roomName, playerName) => {
-    remoteRoleRef.current = null;
-    remotePlayerIdRef.current = null;
-    remotePlayersRef.current = [];
-    localStorage.setItem(REMOTE_SESSION_KEY, JSON.stringify({ roomName, playerName }));
-    const session = connectRoom({ roomName, nickname: playerName, clientId: remoteClientIdRef.current, onMessage: handleRemoteMessage, onOpen: () => setRemote((current) => ({ ...current, status: '已连接，正在恢复房间' })), onClose: () => setRemote((current) => current ? current.error ? current : { ...current, status: '房间连接已断开，请刷新后重连', error: true } : current), onError: () => setRemote((current) => current ? { ...current, status: '无法连接信令服务，请检查网络后重试', error: true } : current) });
-    remoteSessionRef.current = session;
-    setRemote({ role: 'joining', roomName, playerName, players: [], ready: false, status: '正在连接房间', onStart: () => { const playerNames = remotePlayersRef.current.map((player) => player.name); const next = createGame(playerNames, kidStartingMoney); startGameWithNames(playerNames); session.send({ type: 'start', game: next }); } });
-  };
-
-  const leaveRemoteRoom = () => {
-    remoteSessionRef.current?.close();
-    remoteSessionRef.current = null;
-    remoteRoleRef.current = null;
-    remotePlayerIdRef.current = null;
-    remotePlayersRef.current = [];
-    localStorage.removeItem(REMOTE_SESSION_KEY);
-    setRemote(null);
-  };
-
-  useEffect(() => {
-    const session = loadRemoteSession();
-    if (session?.roomName && session?.playerName) handleEnterRoom(session.roomName, session.playerName);
-  }, []);
 
   const animatePropertyAction = async (type) => {
     if (!game || animation.active || game.phase !== 'action') return;
@@ -183,43 +89,43 @@ export default function App() {
     if (!game || animation.active || game.phase !== 'roll' || game.players[game.current].jailed) return;
     const player = game.players[game.current];
     const dice = Math.floor(Math.random() * 6) + 1;
-    setSyncedAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: 1 });
+    setAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: 1 });
     for (const duration of ROLL_TIMING) {
-      setSyncedAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: Math.floor(Math.random() * 6) + 1 });
+      setAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: Math.floor(Math.random() * 6) + 1 });
       await wait(duration);
     }
-    setSyncedAnimation({ active: true, rolling: false, revealing: true, moving: false, dice });
+    setAnimation({ active: true, rolling: false, revealing: true, moving: false, dice });
     await wait(DICE_REVEAL_DELAY);
     const next = rollDice(game, dice);
     const finalPosition = next.players.find((item) => item.id === player.id).position;
     const path = createMovementPath(player.position, dice, finalPosition, next.lastCard?.action);
-    setSyncedAnimation({ active: true, rolling: false, revealing: false, moving: true, movementKind: 'dice', dice });
+    setAnimation({ active: true, rolling: false, revealing: false, moving: true, movementKind: 'dice', dice });
     for (const position of path) {
       updateDisplayPosition(player.id, position);
       await wait(movementStepDelay(path.length));
     }
-    await commitWithAutoTurn(next);
+    setGame(next);
     clearDisplayPositions();
-    setSyncedAnimation({ active: false, rolling: false, revealing: false, moving: false, dice });
+    setAnimation({ active: false, rolling: false, revealing: false, moving: false, dice });
   };
 
   const animateMechanismRoll = async () => {
     if (!game?.pendingEffect?.requiresRoll || animation.active) return;
     const dice = Math.floor(Math.random() * 6) + 1;
-    setSyncedAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: 1 });
+    setAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: 1 });
     for (const duration of ROLL_TIMING) {
-      setSyncedAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: Math.floor(Math.random() * 6) + 1 });
+      setAnimation({ active: true, rolling: true, revealing: false, moving: false, dice: Math.floor(Math.random() * 6) + 1 });
       await wait(duration);
     }
-    setSyncedAnimation({ active: true, rolling: false, revealing: true, moving: false, dice });
+    setAnimation({ active: true, rolling: false, revealing: true, moving: false, dice });
     await wait(DICE_REVEAL_DELAY);
     setGame(rollPendingEffect(game, dice));
-    setSyncedAnimation({ active: false, rolling: false, revealing: false, moving: false, dice });
+    setAnimation({ active: false, rolling: false, revealing: false, moving: false, dice });
   };
 
   const animateCardDraw = async () => {
     if (game?.pendingEffect?.type !== 'drawCard' || animation.active) return;
-    setSyncedAnimation({ active: true, rolling: false, revealing: false, moving: false, dice: game.dice });
+    setAnimation({ active: true, rolling: false, revealing: false, moving: false, dice: game.dice });
     await wait(CARD_DRAW_DELAY);
     setGame(drawPendingCard(game));
     setAnimation({ active: false, rolling: false, revealing: false, moving: false, dice: game.dice });
@@ -236,24 +142,20 @@ export default function App() {
     await wait(EFFECT_DELAY);
     if (finalPosition !== player.position) {
       const path = createMovementPath(player.position, 0, finalPosition, pending.card?.action);
-      setSyncedAnimation({ active: true, rolling: false, revealing: false, moving: true, movementKind: 'card', dice: game.dice });
+      setAnimation({ active: true, rolling: false, revealing: false, moving: true, movementKind: 'card', dice: game.dice });
       for (const position of path) {
         updateDisplayPosition(player.id, position);
         await wait(movementStepDelay(path.length));
       }
     }
-    await commitWithAutoTurn(next);
+    setGame(next);
     clearDisplayPositions();
-    setSyncedAnimation({ active: false, rolling: false, revealing: false, moving: false, dice: game.dice });
+    setAnimation({ active: false, rolling: false, revealing: false, moving: false, dice: game.dice });
   };
 
   useEffect(() => {
     if (game) localStorage.setItem(STORAGE_KEY, JSON.stringify(game));
     else localStorage.removeItem(STORAGE_KEY);
-  }, [game]);
-
-  useEffect(() => {
-    if (remoteRoleRef.current === 'host' && game) remoteSessionRef.current?.send({ type: 'state', game });
   }, [game]);
 
   useEffect(() => {
@@ -277,7 +179,7 @@ export default function App() {
   }, [game]);
 
   useEffect(() => {
-    if (!game || remoteRoleRef.current || paused || animation.active || confirmRestart || game.phase === 'gameover') return undefined;
+    if (!game || paused || animation.active || confirmRestart || game.phase === 'gameover') return undefined;
     const timer = setTimeout(() => {
       if (game.phase === 'roll') {
         if (game.players[game.current].jailed) return;
@@ -319,29 +221,14 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [game, paused, animation.active, confirmRestart]);
 
-  remoteCommandRef.current = (command, playerId) => {
-    if (remoteRoleRef.current !== 'host') return;
-    if (game?.players[game.current]?.id !== playerId) return;
-    if (command.type === 'roll') void animateRoll();
-    if (command.type === 'buy') void animatePropertyAction('buy');
-    if (command.type === 'build') void animatePropertyAction('build');
-    if (command.type === 'end') apply(endTurn);
-    if (command.type === 'release') apply((current) => releaseFromJail(current, command.method));
-    if (command.type === 'draw') void animateCardDraw();
-    if (command.type === 'mechanismRoll') void animateMechanismRoll();
-    if (command.type === 'resolve') void executeEffect();
-    if (command.type === 'sellBuilding') apply((current) => sellBuilding(current, command.position));
-    if (command.type === 'sellProperty') apply((current) => sellProperty(current, command.position));
-  };
-
   useEffect(() => {
-    if (!game || remoteRoleRef.current === 'guest' || paused || animation.active || game.phase !== 'action' || hasOptionalPropertyAction(game)) return undefined;
+    if (!game || paused || animation.active || game.phase !== 'action' || hasOptionalPropertyAction(game)) return undefined;
     setGame((current) => current === game ? endTurn(current) : current);
     return undefined;
   }, [game, paused, animation.active]);
 
   useEffect(() => {
-    if (!game || remoteRoleRef.current === 'guest' || paused || animation.active || game.phase !== 'roll') return undefined;
+    if (!game || paused || animation.active || game.phase !== 'roll') return undefined;
     const player = game.players[game.current];
     if (!player.jailed) return undefined;
     if (player.jailFreeCards > 0) return undefined;
@@ -357,7 +244,6 @@ export default function App() {
     if (!game || paused || animation.active || confirmRestart) return undefined;
     const handleKeyDown = (event) => {
       if (event.repeat || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-      if (remoteRoleRef.current && game.players[game.current]?.id !== remotePlayerIdRef.current) return;
       const isConfirmKey = event.code === 'Space';
       const isPropertyKey = event.key === 'Alt';
       if (!isConfirmKey && !isPropertyKey) return;
@@ -380,10 +266,9 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [game, paused, animation.active, confirmRestart]);
 
-  if (!game) return <SetupScreen names={names} setNames={setNames} onStart={startGame} onEnterRoom={handleEnterRoom} onLeaveRoom={leaveRemoteRoom} remote={remote} />;
+  if (!game) return <SetupScreen names={names} setNames={setNames} onStart={startGame} />;
 
   const restart = () => {
-    leaveRemoteRoom();
     setGame(null);
     setPaused(false);
     setConfirmRestart(false);
@@ -397,20 +282,10 @@ export default function App() {
   const activePlayerId = game.players[game.current].id;
   const ranking = [...game.players].sort((left, right) => totalAssets(right) - totalAssets(left));
   const ranks = new Map(ranking.map((player, index) => [player.id, index + 1]));
-  const remoteInvoke = (command, localAction) => {
-    if (remoteRoleRef.current) {
-      if (game.players[game.current]?.id !== remotePlayerIdRef.current) return;
-      if (remoteRoleRef.current === 'guest') {
-      remoteSessionRef.current?.send({ type: 'command', playerId: remotePlayerIdRef.current, command });
-      } else localAction();
-    }
-    else localAction();
-  };
-  const canAct = !remoteRoleRef.current || game.players[game.current]?.id === remotePlayerIdRef.current;
   return <main className="game-shell">
     <div className="player-strip" style={{ '--player-count': game.players.length }}>{game.players.map((player) => <PlayerPanel key={player.id} player={player} active={player.id === activePlayerId} rank={ranks.get(player.id)} moneyPulse={moneyPulses[player.id]} />)}</div>
     <div className="game-layout">
-      <Board game={game} displayPositions={displayPositions} movingPlayerId={movingPlayerId} animation={animation} actionFeedback={actionFeedback} paused={paused} canAct={canAct} onTogglePause={() => setPaused((value) => !value)} onLogOpen={() => { if (!paused) { logPausedRef.current = true; setPaused(true); } }} onLogClose={() => { if (logPausedRef.current) { logPausedRef.current = false; setPaused(false); } }} onRestart={() => setConfirmRestart(true)} onRoll={() => remoteInvoke({ type: 'roll' }, animateRoll)} onBuy={() => remoteInvoke({ type: 'buy' }, () => animatePropertyAction('buy'))} onBuild={() => remoteInvoke({ type: 'build' }, () => animatePropertyAction('build'))} onEnd={() => remoteInvoke({ type: 'end' }, () => apply(endTurn))} onRelease={(method) => remoteInvoke({ type: 'release', method }, () => apply((current) => releaseFromJail(current, method)))} onDraw={() => remoteInvoke({ type: 'draw' }, animateCardDraw)} onMechanismRoll={() => remoteInvoke({ type: 'mechanismRoll' }, animateMechanismRoll)} onResolve={() => remoteInvoke({ type: 'resolve' }, executeEffect)} onSellBuilding={(position) => remoteInvoke({ type: 'sellBuilding', position }, () => apply((current) => sellBuilding(current, position)))} onSellProperty={(position) => remoteInvoke({ type: 'sellProperty', position }, () => apply((current) => sellProperty(current, position)))} />
+      <Board game={game} displayPositions={displayPositions} movingPlayerId={movingPlayerId} animation={animation} actionFeedback={actionFeedback} paused={paused} canAct onTogglePause={() => setPaused((value) => !value)} onLogOpen={() => { if (!paused) { logPausedRef.current = true; setPaused(true); } }} onLogClose={() => { if (logPausedRef.current) { logPausedRef.current = false; setPaused(false); } }} onRestart={() => setConfirmRestart(true)} onRoll={animateRoll} onBuy={() => animatePropertyAction('buy')} onBuild={() => animatePropertyAction('build')} onEnd={() => apply(endTurn)} onRelease={(method) => apply((current) => releaseFromJail(current, method))} onDraw={animateCardDraw} onMechanismRoll={animateMechanismRoll} onResolve={executeEffect} onSellBuilding={(position) => apply((current) => sellBuilding(current, position))} onSellProperty={(position) => apply((current) => sellProperty(current, position))} />
     </div>
     {confirmRestart && <div className="modal-layer"><section className="modal-card confirm-card"><span className="kicker">重新开局</span><h2>放弃当前进度？</h2><p>当前棋局和本地存档都会被清除，此操作无法撤销。</p><div className="confirm-actions"><button className="ghost-button" onClick={() => setConfirmRestart(false)}>取消</button><button className="danger-button" onClick={restart}>确认重新开局</button></div></section></div>}
     <div className="money-fx-layer" aria-hidden="true">{moneyEffects.map((effect) => <span className={effect.delta > 0 ? 'is-gain' : 'is-loss'} style={{ '--money-x': `${effect.targetX - window.innerWidth / 2}px`, '--money-y': `${effect.targetY - window.innerHeight / 2}px`, '--money-offset': `${effect.offset}px` }} key={effect.id}>{effect.delta > 0 ? '+' : '-'}{money(Math.abs(effect.delta))}</span>)}</div>
