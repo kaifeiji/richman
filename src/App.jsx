@@ -4,7 +4,7 @@ import GameOver from './components/GameOver';
 import PlayerPanel from './components/PlayerPanel';
 import SetupScreen from './components/SetupScreen';
 import { BOARD } from './game/board';
-import { buildProperty, buyProperty, createGame, drawPendingCard, endTurn, hasOptionalPropertyAction, ownerOf, releaseFromJail, resolvePending, rollDice, rollPendingEffect, sellBuilding, sellProperty, totalAssets } from './game/engine';
+import { buildProperty, buyProperty, createGame, drawPendingCard, endTurn, hasOptionalPropertyAction, liquidationOptions, ownerOf, releaseFromJail, resolvePending, rollDice, rollPendingEffect, sellBuilding, sellProperty, totalAssets } from './game/engine';
 import { money } from './game/format';
 import { createMovementPath } from './game/movement';
 
@@ -26,7 +26,19 @@ const kidStartingMoney = new URLSearchParams(window.location.search).has('kid') 
   : undefined;
 
 function loadGame() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; }
+  try {
+    const game = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (game?.pendingEffect?.type !== 'arrest') return game;
+    const playerId = game.pendingEffect.playerId;
+    return {
+      ...game,
+      phase: 'roll',
+      pendingEffect: null,
+      players: game.players.map((player) => player.id === playerId
+        ? { ...player, jailed: true, jailTurns: 2, jailChoiceAvailable: true, skipTurns: 0 }
+        : player),
+    };
+  } catch { return null; }
 }
 
 export default function App() {
@@ -219,14 +231,9 @@ export default function App() {
       }
       if (game.phase === 'liquidate') {
         const player = game.players.find((item) => item.id === game.pendingDebt?.playerId);
-        const saleOptions = player?.properties.flatMap((position) => {
-          const level = player.buildings[position] ?? 0;
-          return level > 0 ? [{ type: 'building', position }] : [{ type: 'property', position }];
-        }) || [];
-        const sale = saleOptions[Math.floor(Math.random() * saleOptions.length)];
-        const salePosition = sale?.position;
-        if (salePosition === undefined) return;
-        apply((current) => sale.type === 'building' ? sellBuilding(current, salePosition) : sellProperty(current, salePosition));
+        const sale = player && liquidationOptions(player)[0];
+        if (!sale) return;
+        apply((current) => sale.type === 'building' ? sellBuilding(current, sale.position) : sellProperty(current, sale.position));
       }
     }, AUTO_ACTION_TIMEOUT);
     return () => clearTimeout(timer);
@@ -249,8 +256,14 @@ export default function App() {
       if (isConfirmKey && game.phase === 'resolve' && game.pendingEffect?.type === 'drawCard') void animateCardDraw();
       else if (isConfirmKey && game.phase === 'resolve' && game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null) void animateMechanismRoll();
       else if (isConfirmKey && game.phase === 'resolve') void executeEffect();
+      else if (isConfirmKey && game.phase === 'roll' && game.players[game.current].jailed) apply((current) => releaseFromJail(current, 'skip'));
       else if (isConfirmKey && game.phase === 'roll' && !game.players[game.current].jailed) void animateRoll();
       else if (isConfirmKey && game.phase === 'action') apply(endTurn);
+      else if (isConfirmKey && game.phase === 'liquidate') {
+        const player = game.players.find((item) => item.id === game.pendingDebt?.playerId);
+        const sale = player && liquidationOptions(player)[0];
+        if (sale) apply((current) => sale.type === 'building' ? sellBuilding(current, sale.position) : sellProperty(current, sale.position));
+      }
       else if (isPropertyKey && game.phase === 'roll' && game.players[game.current].jailed) apply((current) => releaseFromJail(current, 'alt'));
       else if (isPropertyKey && game.phase === 'action') {
         const player = game.players[game.current];

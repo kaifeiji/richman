@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildProperty, buyProperty, createGame, currentFees, drawPendingCard, endTurn, hasOptionalPropertyAction, releaseFromJail, resolvePending, rollDice, rollPendingEffect, sellBuilding, sellProperty, totalAssets } from './engine.js';
+import { buildProperty, buyProperty, createGame, currentFees, drawPendingCard, endTurn, hasOptionalPropertyAction, liquidationOptions, releaseFromJail, resolvePending, rollDice, rollPendingEffect, sellBuilding, sellProperty, totalAssets } from './engine.js';
 import { BOARD } from './board.js';
 import { createMovementPath } from './movement.js';
 
@@ -141,27 +141,23 @@ test('charges an arrest event fine without stopping future turns', () => {
 
 test('board arrest stops two turns and suspends fees until the owner returns', () => {
   const base = createGame(['甲', '乙']);
-  let game = {
-    ...base,
-    phase: 'resolve',
-    pendingEffect: { type: 'arrest', playerId: 0, title: '逮捕', text: '停止 2 回合' },
-    players: base.players.map((player) => player.id === 0 ? { ...player, position: 25, properties: [1] } : player),
-  };
-  game = resolvePending(game);
+  const starting = { ...base, players: base.players.map((player) => player.id === 0 ? { ...player, position: 24, properties: [1] } : player) };
+  let game = rollDice(starting, 1);
   assert.equal(game.players[0].jailed, true);
   assert.equal(game.players[0].jailTurns, 2);
+  assert.equal(game.phase, 'roll');
+  assert.equal(game.players[0].jailChoiceAvailable, true);
   assert.equal(currentFees(game, BOARD[1]).passFee, 0);
 
+  game = releaseFromJail(game, 'skip');
+  assert.equal(game.players[0].jailTurns, 1);
   game = endTurn(game);
-  game = endTurn({ ...game, phase: 'action' });
-  assert.equal(game.current, 0);
-  assert.equal(game.players[0].jailTurns, 2);
-  assert.equal(game.players[0].jailed, true);
-  game = endTurn(releaseFromJail(game, 'skip'));
   game = endTurn({ ...game, phase: 'action' });
   assert.equal(game.current, 0);
   assert.equal(game.players[0].jailTurns, 1);
   assert.equal(game.players[0].jailed, true);
+  assert.equal(game.players[0].jailChoiceAvailable, false);
+  assert.strictEqual(releaseFromJail(game, 'pay'), game);
   game = endTurn(releaseFromJail(game, 'skip'));
   assert.equal(game.players[0].jailTurns, 0);
   assert.equal(game.players[0].jailed, true);
@@ -172,6 +168,31 @@ test('board arrest stops two turns and suspends fees until the owner returns', (
   assert.equal(game.current, 0);
   assert.equal(game.players[0].jailed, false);
   assert.equal(currentFees(game, BOARD[1]).passFee, 500);
+});
+
+test('offers arrest release on landing, then only asks to confirm later skipped turns', () => {
+  let game = rollDice(gameAt(24), 1);
+  assert.equal(game.phase, 'roll');
+  assert.equal(game.players[0].jailChoiceAvailable, true);
+
+  game = releaseFromJail(game, 'skip');
+  assert.equal(game.phase, 'action');
+  assert.equal(game.players[0].jailTurns, 1);
+  assert.equal(game.players[0].jailChoiceAvailable, false);
+  game = endTurn(game);
+  game = endTurn({ ...game, phase: 'action' });
+  assert.equal(game.current, 0);
+  assert.equal(game.players[0].jailed, true);
+  assert.equal(game.players[0].jailChoiceAvailable, false);
+  assert.strictEqual(releaseFromJail(game, 'pay'), game);
+
+  game = releaseFromJail(game, 'skip');
+  assert.equal(game.players[0].jailTurns, 0);
+  game = endTurn(game);
+  game = endTurn({ ...game, phase: 'action' });
+  assert.equal(game.current, 0);
+  assert.equal(game.phase, 'roll');
+  assert.equal(game.players[0].jailed, false);
 });
 
 test('draws a chance card', () => {
@@ -259,48 +280,48 @@ test('supports all jail release outcomes', () => {
   assert.equal(accepted.players[0].position, 25);
 });
 
-test('pays for one arrested turn and prompts again for the remaining turn', () => {
+test('pays once to end an arrest regardless of remaining turns', () => {
   const base = createGame(['甲', '乙']);
-  let game = {
-    ...base,
-    players: base.players.map((player) => player.id === 0
-      ? { ...player, jailed: true, jailTurns: 2 }
-      : player),
-  };
-
-  game = releaseFromJail(game, 'alt');
-  assert.equal(game.players[0].money, 21000);
-  assert.equal(game.players[0].jailTurns, 1);
-  assert.equal(game.players[0].jailed, false);
-  assert.equal(game.players[0].jailPaidTurn, true);
-
-  game = endTurn(rollDice(game, 1));
-  assert.equal(game.current, 1);
-  assert.equal(game.players[0].jailed, true);
-  game = endTurn({ ...game, phase: 'action' });
-  assert.equal(game.current, 0);
-  assert.equal(game.players[0].jailTurns, 1);
-  assert.equal(game.players[0].jailed, true);
-
-  game = releaseFromJail(game, 'alt');
-  assert.equal(game.players[0].money, 16000);
-  assert.equal(game.players[0].jailTurns, 0);
-  assert.equal(game.players[0].jailed, false);
+  for (const jailTurns of [1, 2]) {
+    const arrested = {
+      ...base,
+      players: base.players.map((player) => player.id === 0
+        ? { ...player, jailed: true, jailTurns, jailChoiceAvailable: true }
+        : player),
+    };
+    const released = releaseFromJail(arrested, 'alt');
+    assert.equal(released.players[0].money, 21000);
+    assert.equal(released.players[0].jailTurns, 0);
+    assert.equal(released.players[0].jailed, false);
+    assert.equal(released.players[0].skipTurns, 0);
+    assert.equal(rollDice(released, 1).phase, 'action');
+  }
 });
 
 test('Alt prioritizes a release card and skips when the player cannot pay', () => {
   const base = createGame(['甲', '乙']);
-  const withCard = { ...base, players: base.players.map((player) => player.id === 0 ? { ...player, jailed: true, jailTurns: 2, jailFreeCards: 1 } : player) };
+  const withCard = { ...base, players: base.players.map((player) => player.id === 0 ? { ...player, jailed: true, jailTurns: 2, jailChoiceAvailable: true, jailFreeCards: 1 } : player) };
   const released = releaseFromJail(withCard, 'alt');
   assert.equal(released.players[0].money, 26000);
   assert.equal(released.players[0].jailFreeCards, 0);
   assert.equal(released.players[0].jailed, false);
 
-  const withoutFunds = { ...base, players: base.players.map((player) => player.id === 0 ? { ...player, money: 3000, jailed: true, jailTurns: 2 } : player) };
+  const withoutFunds = { ...base, players: base.players.map((player) => player.id === 0 ? { ...player, money: 3000, jailed: true, jailTurns: 2, jailChoiceAvailable: true } : player) };
   const skipped = releaseFromJail(withoutFunds, 'alt');
   assert.equal(skipped.phase, 'action');
   assert.equal(skipped.players[0].jailTurns, 1);
   assert.equal(skipped.players[0].jailed, true);
+});
+
+test('Alt jail release does not affect non-arrest skipped turns', () => {
+  const base = createGame(['甲', '乙']);
+  for (const skipTurns of [1, 2]) {
+    const paused = {
+      ...base,
+      players: base.players.map((player) => player.id === 0 ? { ...player, skipTurns } : player),
+    };
+    assert.strictEqual(releaseFromJail(paused, 'alt'), paused);
+  }
 });
 
 test('suspends fees while an owner is arrested but not in the harbor', () => {
@@ -440,6 +461,16 @@ test('requires selling buildings before their land', () => {
   const sold = sellBuilding(game, 2);
   assert.equal(sold.players[0].buildings[2], 1);
   assert.equal(sold.players[0].money, 400);
+});
+
+test('sorts liquidation options by cheapest refund and sells buildings before land', () => {
+  const game = createGame(['甲', '乙']);
+  const player = { ...game.players[0], properties: [21, 1, 4], buildings: { 21: 1, 4: 1 } };
+  assert.deepEqual(liquidationOptions(player), [
+    { type: 'building', position: 4, amount: 600 },
+    { type: 'building', position: 21, amount: 600 },
+    { type: 'property', position: 1, amount: 750 },
+  ]);
 });
 
 test('automatically advances after accepting an arrested turn', () => {

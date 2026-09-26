@@ -22,7 +22,9 @@ export default function ActionBar({ game, animation, paused = false, canAct = tr
   else if (game.phase === 'roll') {
     title = player.jailed ? `${player.name} 被逮捕` : `轮到 ${player.name} 了`;
     description = player.jailed
-      ? `${player.jailTurns > 1 ? `剩余 ${player.jailTurns} 次停玩 · ` : ''}${player.jailFreeCards > 0 ? '按 Alt 使用获释卡' : player.money >= JAIL_RELEASE_FEE ? `按 Alt 支付 ${money(JAIL_RELEASE_FEE)} 保释并行动` : '余额不足，选择跳过本回合'}`
+      ? player.jailChoiceAvailable === false
+        ? '按空格确认跳过本回合'
+        : `${player.jailTurns > 1 ? `剩余 ${player.jailTurns} 次停玩 · ` : ''}${player.jailFreeCards > 0 ? '按 Alt 使用获释卡' : player.money >= JAIL_RELEASE_FEE ? `按 Alt 支付 ${money(JAIL_RELEASE_FEE)} 恢复自由` : '余额不足，选择跳过本回合'}`
       : '按空格掷骰出发';
   }
   else if (game.pendingEffect?.type === 'drawCard') { title = game.pendingEffect.kind === 'chance' ? '机会来了' : '发生大事件'; description = ''; }
@@ -58,10 +60,10 @@ export default function ActionBar({ game, animation, paused = false, canAct = tr
     {hasActionButtons && <div className="action-buttons">
       {game.phase === 'roll' && !player.jailed && <button className="primary-button action-aggressive dice-button" onClick={onRoll} disabled={disabled} aria-label="掷骰出发"><Dice5 /></button>}
       {game.phase === 'roll' && player.jailed && <>
-        {player.jailFreeCards > 0
+        {player.jailChoiceAvailable !== false && (player.jailFreeCards > 0
           ? <button className="secondary-button action-aggressive" onClick={() => onRelease('alt')} disabled={disabled}><TicketCheck />获释卡 · Alt</button>
-          : player.money >= JAIL_RELEASE_FEE && <button className="secondary-button action-aggressive" onClick={() => onRelease('alt')} disabled={disabled}><WalletCards />支付 {money(JAIL_RELEASE_FEE)} · Alt</button>}
-        <button className="ghost-button action-conservative" onClick={() => onRelease('skip')} disabled={disabled}>跳过本回合</button>
+          : player.money >= JAIL_RELEASE_FEE && <button className="secondary-button action-aggressive" onClick={() => onRelease('alt')} disabled={disabled}><WalletCards />恢复自由 {money(JAIL_RELEASE_FEE)} · Alt</button>)}
+        <button className="ghost-button action-conservative" onClick={() => onRelease('skip')} disabled={disabled}>{player.jailChoiceAvailable === false ? '确认跳过 · 空格' : '跳过本回合'}</button>
       </>}
       {game.phase === 'resolve' && game.pendingEffect?.type === 'drawCard' && <button className="primary-button action-aggressive confirm-button" onClick={onDraw} disabled={disabled} aria-label="确认"><Check /></button>}
       {game.phase === 'resolve' && game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null && <button className="primary-button action-aggressive dice-button" onClick={onMechanismRoll} disabled={disabled} aria-label="机制掷骰"><Dice5 /></button>}
