@@ -156,31 +156,6 @@ button svg { width: 18px; height: 18px; }
 .popper-stays { padding: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid #d5ddd7; background: #f7f3e8; color: #65766f; }
 .popper-stays span { display: flex; flex-direction: column; align-items: center; font-size: .58rem; }
 .popper-stays b { color: #18322d; font-size: .7rem; }
-.country-card, .special-detail { border: 1px solid #8ca198; background: rgba(255,253,247,.96); box-shadow: 7px 7px 0 rgba(25,70,61,.16); }
-.country-card { background: color-mix(in srgb, var(--region-color) 13%, #fffdf7); }
-.country-card header { padding: 15px 17px 12px; display: flex; align-items: end; justify-content: space-between; border-bottom: 1px solid rgba(120,140,130,.22); }
-.country-card header span { color: #71817b; font-size: .65rem; text-transform: uppercase; }
-.country-card h2 { margin: 1px 0 0; font: 900 1.45rem 'Noto Serif SC', serif; }
-.country-card header > b { font-size: .72rem; color: #5f716a; }
-.property-action-status { min-height: 40px; padding: 8px 14px; display: grid; place-items: center; background: #e7e8e3; color: #596a63; font: 900 1rem 'Noto Serif SC', serif; }
-.property-action-status.is-available { background: #f0b833; color: #2f280e; box-shadow: inset 0 -4px 0 #cf8d18; animation: action-pulse 1.5s ease-in-out infinite; }
-@keyframes action-pulse { 50% { background: #ffd665; } }
-.country-owner { min-height: 38px; padding: 8px 15px; display: flex; align-items: center; gap: 7px; background: color-mix(in srgb, var(--region-color) 8%, rgba(255,255,255,.5)); font-size: .76rem; }
-.country-owner em { margin-left: auto; padding: 2px 6px; color: white; font-size: .62rem; font-style: normal; font-weight: 800; }
-.country-owner b { font-size: .64rem; }
-.country-card dl { margin: 0; display: grid; grid-template-columns: repeat(4, 1fr); }
-.country-card dl div { padding: 10px; border-right: 1px solid #d6ddd7; text-align: center; }
-.country-card dl div:last-child { border: 0; }
-.country-card dt { color: #667870; font-size: .62rem; }
-.country-card dd { margin: 3px 0 0; font-weight: 900; font-size: .82rem; }
-.stay-fees { padding: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; background: #183f37; color: white; }
-.stay-fees div { padding: 7px 3px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 1px 4px; border: 1px solid rgba(255,255,255,.17); }
-.stay-fees div.active { background: #db4f40; }
-.stay-fees span { font-size: .58rem; }
-.stay-fees b { grid-column: 1 / 3; font-size: .7rem; }
-.special-detail { min-height: 180px; padding: 26px; display: flex; flex-direction: column; justify-content: center; border-top: 7px solid #d94b3d; }
-.special-detail span { font: 900 1.8rem 'Noto Serif SC', serif; }
-.special-detail strong { margin-top: 12px; color: #60736b; font-size: .82rem; line-height: 1.6; }
 .mechanism-card { position: relative; padding: 28px; display: flex; flex-direction: column; align-items: center; text-align: center; overflow: visible; border: 2px solid #d4a62d; background: #f8ce55; box-shadow: 8px 8px 0 rgba(24,50,45,.18); animation: card-reveal 1.45s cubic-bezier(.22,.74,.22,1) both; transform-origin: center; }
 .mechanism-copy { position: relative; z-index: 1; width: min(100%, 680px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .mechanism-card::after { content: ''; position: absolute; z-index: 0; right: -34px; top: -34px; width: 110px; height: 110px; border: 18px solid rgba(255,255,255,.28); border-radius: 50%; pointer-events: none; }
@@ -228,15 +203,13 @@ button svg { width: 18px; height: 18px; }
 .play-card-body { position: relative; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); overflow: visible; }
 .play-card-body.has-mechanism { min-height: 0; grid-template-rows: minmax(0, 1fr) 72px; overflow: visible; }
 .play-card-body.has-liquidation { display: block; }
-.play-card-body > .country-card, .play-card-body > .special-detail, .play-card-body > .mechanism-card, .play-card-body > .card-actions, .play-card-body > .liquidation-card { width: 100%; min-width: 0; }
-.play-card-body > .country-card, .play-card-body > .special-detail, .play-card-body > .mechanism-card { box-shadow: none; }
+.play-card-body > .mechanism-card, .play-card-body > .card-actions, .play-card-body > .liquidation-card { width: 100%; min-width: 0; }
+.play-card-body > .mechanism-card { box-shadow: none; }
 .play-card-body > .mechanism-card { min-width: 0; min-height: 0; height: 100%; overflow: visible; }
 .card-actions { position: relative; min-height: 0; height: 100%; padding: 0; display: grid; grid-template-rows: minmax(0, 1fr) 72px; gap: 0; border: 2px solid var(--active-player-color); background: color-mix(in srgb, var(--active-player-color) 5%, white); overflow: hidden; }
 .card-actions.no-actions { grid-template-rows: minmax(0, 1fr); }
 .operation-status { min-height: 0; padding: 16px 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; overflow: hidden; text-align: center; }
 .property-progress b { font-size: .86rem; }
-.stay-fees span { font-size: .7rem; }
-.stay-fees b { font-size: .82rem; }
 .card-actions .action-buttons button { font-size: 1.12rem; }
 .card-actions .operation-status { border: 2px solid color-mix(in srgb, var(--active-player-color) 45%, white); background: color-mix(in srgb, var(--active-player-color) 12%, white); color: color-mix(in srgb, var(--active-player-color) 82%, #18322d); }
 .card-actions .operation-status .operation-heading p { color: color-mix(in srgb, var(--active-player-color) 68%, #52675f); }

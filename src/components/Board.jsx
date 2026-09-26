@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Anchor, CircleAlert, CircleHelp, Flag, Landmark, Leaf, LockKeyhole, MapPin, Pause, Play, RotateCcw, TrendingUp } from 'lucide-react';
+import { Anchor, CircleAlert, CircleHelp, Flag, Landmark, Leaf, LockKeyhole, MapPin, TrendingUp } from 'lucide-react';
 import { BOARD } from '../game/board';
 import { buildingLevel, currentFees, hasBuildingsOn, ownerOf } from '../game/engine';
 import { money } from '../game/format';
-import CountryCard from './CountryCard';
 import MechanismCard from './MechanismCard';
 import ActionBar from './ActionBar';
 import EventFeed from './EventFeed';
@@ -52,7 +51,6 @@ export default function Board({ game, displayPositions, movingPlayerId, animatio
   const activePosition = displayPositions[focusPlayer.id] ?? focusPlayer.position;
   const selectedTile = BOARD[activePosition];
   const selectedOwner = ownerOf(game, activePosition);
-  const selectedFees = currentFees(game, selectedTile);
   const selectedLevel = selectedOwner ? buildingLevel(selectedOwner, activePosition) : 0;
   const selectedHasBuildings = hasBuildingsOn(game, activePosition);
   useEffect(() => {
@@ -98,7 +96,6 @@ export default function Board({ game, displayPositions, movingPlayerId, animatio
     <div className={`board ${animation.moving ? 'is-moving' : ''}`} ref={boardRef}>
       {BOARD.map((tile) => {
         const owner = ownerOf(game, tile.id);
-        const occupants = game.players.filter((player) => !player.bankrupt && (displayPositions[player.id] ?? player.position) === tile.id);
         const TileIcon = TILE_ICONS[tile.type];
         return <div
           className={`tile tile-${tile.type} ${activePosition === tile.id ? 'tile-selected' : ''}`}

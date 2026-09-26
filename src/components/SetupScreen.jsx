@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Minus, Plus, Users } from 'lucide-react';
 
 export default function SetupScreen({ names, setNames, onStart }) {

@@ -31,8 +31,8 @@ export default function App() {
   const [names, setNames] = useState(['玩家 1', '玩家 2']);
   const [game, setGame] = useState(loadGame);
   const [confirmRestart, setConfirmRestart] = useState(false);
-    const [paused, setPaused] = useState(false);
-    const logPausedRef = useRef(false);
+  const [paused, setPaused] = useState(false);
+  const logPausedRef = useRef(false);
   const [animation, setAnimation] = useState({ active: false, rolling: false, revealing: false, moving: false, dice: null });
   const [displayPositions, setDisplayPositions] = useState({});
   const [movingPlayerId, setMovingPlayerId] = useState(null);
@@ -40,7 +40,6 @@ export default function App() {
   const [moneyEffects, setMoneyEffects] = useState([]);
   const [moneyPulses, setMoneyPulses] = useState({});
   const previousMoney = useRef(Object.fromEntries((game?.players || []).map((player) => [player.id, player.money])));
-  const previousPlayerId = useRef(game?.players[game.current]?.id);
 
   const apply = (action) => setGame((current) => {
     const next = action(current);
@@ -275,7 +274,6 @@ export default function App() {
     previousMoney.current = {};
     setMoneyEffects([]);
     setMoneyPulses({});
-    previousPlayerId.current = undefined;
     setDisplayPositions({});
     setAnimation({ active: false, rolling: false, revealing: false, moving: false, dice: null });
   };
