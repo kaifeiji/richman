@@ -71,7 +71,7 @@ button svg { width: 18px; height: 18px; }
 .player-money { position: relative; }
 .player-money span { color: #71817a; font-size: .6rem; font-weight: 800; }
 .player-money b { font-size: clamp(.88rem, 1.1vw, 1.2rem); line-height: 1.15; }
-.player-money.is-pulsing > b { animation: money-bump .55s ease-out; }
+.player-money.is-pulsing > b, .player-total-assets.is-pulsing > b { animation: money-bump .55s ease-out; }
 .player-money.is-pulsing.is-gain > b, .player-money.is-pulsing.is-loss > b { color: #18322d; }
 @keyframes money-bump { 45% { transform: scale(1.2); } }
 .money-fx-layer { position: fixed; z-index: 100; inset: 0; pointer-events: none; }
@@ -156,7 +156,7 @@ button svg { width: 18px; height: 18px; }
 .popper-stays { padding: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid #d5ddd7; background: #f7f3e8; color: #65766f; }
 .popper-stays span { display: flex; flex-direction: column; align-items: center; font-size: .58rem; }
 .popper-stays b { color: #18322d; font-size: .7rem; }
-.mechanism-card { position: relative; padding: 28px; display: flex; flex-direction: column; align-items: center; text-align: center; overflow: visible; border: 2px solid #d4a62d; background: #f8ce55; box-shadow: 8px 8px 0 rgba(24,50,45,.18); animation: card-reveal 1.45s cubic-bezier(.22,.74,.22,1) both; transform-origin: center; }
+.mechanism-card { position: relative; padding: 28px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: visible; border: 2px solid #d4a62d; background: #f8ce55; box-shadow: 8px 8px 0 rgba(24,50,45,.18); animation: card-reveal 1.45s cubic-bezier(.22,.74,.22,1) both; transform-origin: center; }
 .mechanism-copy { position: relative; z-index: 1; width: min(100%, 680px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .mechanism-card::after { content: ''; position: absolute; z-index: 0; right: -34px; top: -34px; width: 110px; height: 110px; border: 18px solid rgba(255,255,255,.28); border-radius: 50%; pointer-events: none; }
 .mechanism-event { border-color: #a9302a; background: #dc5b4f; color: white; }
@@ -241,7 +241,8 @@ button svg { width: 18px; height: 18px; }
 .property-progress .is-current i { background: #e2a72c; color: #302500; transform: scale(1.12); }
 .property-progress.is-buying + .action-buttons .secondary-button { background: #e2a72c; }
 .property-progress.is-building + .action-buttons .secondary-button { background: #5da17e; color: white; box-shadow: 0 3px 0 #34735a; }
-.action-feedback { height: 100%; padding: 28px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; border: 2px solid #397c61; background: #e7f3e9; box-shadow: 7px 7px 0 rgba(25,70,61,.16); animation: feedback-arrive .45s ease-out both; }
+.action-feedback { height: 100%; padding: 28px; display: flex; align-items: center; justify-content: center; gap: 18px; border: 2px solid #397c61; background: #e7f3e9; box-shadow: 7px 7px 0 rgba(25,70,61,.16); text-align: center; animation: feedback-arrive .45s ease-out both; }
+.action-feedback > div { min-width: 0; text-align: center; }
 .feedback-overlay { position: absolute; z-index: 12; inset: 0; display: grid; }
 .feedback-overlay .action-feedback { min-height: 100%; box-shadow: none; }
 .feedback-buy { border-color: #d19a24; background: #fff2c3; }

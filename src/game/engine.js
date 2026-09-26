@@ -3,6 +3,7 @@ import { CHANCE_CARDS, EVENT_CARDS } from './cards.js';
 
 export const STARTING_MONEY = 26000;
 export const START_REWARD = 2000;
+export const JAIL_RELEASE_FEE = 5000;
 
 const addLog = (game, message) => ({ ...game, log: [message, ...game.log] });
 const playerById = (game, id) => game.players.find((player) => player.id === id);
@@ -14,7 +15,7 @@ export function createGame(names = ['玩家 1', '玩家 2'], kidMoney = STARTING
   const otherStartingMoney = Number.isFinite(kidMoney) && kidMoney >= 0 ? kidMoney : STARTING_MONEY;
   const players = validNames.map((name, id) => ({
     id, name, color: PLAYER_COLORS[id], initials: name.slice(0, 1), money: id === 0 ? STARTING_MONEY : otherStartingMoney,
-    position: 0, properties: [], buildings: {}, jailFreeCards: 0, jailed: false, skipTurns: 0, bankrupt: false,
+    position: 0, properties: [], buildings: {}, jailFreeCards: 0, jailed: false, jailTurns: 0, jailPaidTurn: false, skipTurns: 0, bankrupt: false,
   }));
   return { players, current: 0, round: 1, turnCount: 1, phase: 'roll', dice: null, lastCard: null, pendingEffect: null, builtThisTurn: false, chanceCursor: 0, eventCursor: 0, winner: null, log: [`游戏开始，由 ${players[0].name} 先行动。`] };
 }
@@ -213,7 +214,7 @@ export function resolvePending(game) {
     if (pending.outcome === 'closed') next = addLog(updatePlayer(next, pending.playerId, { skipTurns: (player.skipTurns ?? 0) + 1 }), `${player.name} 遇到休市，将暂停一回合。`);
     else next = pending.amount < 0 ? settlePayment(next, pending.playerId, null, -pending.amount, '遭遇熊市') : addLog(updatePlayer(next, pending.playerId, { money: player.money + pending.amount }), `${player.name} 遇到牛市，领取 ¥${pending.amount.toLocaleString('zh-CN')}。`);
   }
-  if (pending.type === 'arrest') next = addLog(updatePlayer(next, pending.playerId, { jailed: true, skipTurns: (player.skipTurns ?? 0) + 2 }), `${player.name} 被逮捕，将停止 2 回合；期间不收取地产费用。`);
+  if (pending.type === 'arrest') next = addLog(updatePlayer(next, pending.playerId, { jailed: true, jailTurns: 2, jailPaidTurn: false }), `${player.name} 被逮捕，将停止 2 回合；期间不收取地产费用。`);
   if (pending.type === 'harbor') next = addLog(updatePlayer(next, pending.playerId, { skipTurns: (player.skipTurns ?? 0) + 1 }), `${player.name} 在避风港停靠，将停止 1 回合；地产仍正常收费。`);
   return next.phase === 'liquidate' || next.phase === 'gameover' ? next : { ...next, phase: 'action' };
 }
@@ -278,8 +279,18 @@ export function buildProperty(game) {
 export function releaseFromJail(game, method, forcedDice) {
   const player = currentPlayer(game);
   if (game.phase !== 'roll' || !player.jailed) return game;
-  if (method === 'card' && player.jailFreeCards > 0) return addLog(updatePlayer(game, player.id, { jailed: false, skipTurns: 0, jailFreeCards: player.jailFreeCards - 1 }), `${player.name} 使用免费获释卡。`);
-  if (method === 'accept') return addLog(updatePlayer({ ...game, phase: 'action' }, player.id, { jailed: false, skipTurns: 0 }), `${player.name} 选择跳过本回合。`);
+  const jailTurns = player.jailTurns ?? (player.skipTurns > 0 ? player.skipTurns : 1);
+  const legacySkipTurns = player.jailTurns === undefined ? 0 : player.skipTurns;
+  if (method === 'alt') method = player.jailFreeCards > 0 ? 'card' : player.money >= JAIL_RELEASE_FEE ? 'pay' : 'skip';
+  if (method === 'card' && player.jailFreeCards > 0) return addLog(updatePlayer(game, player.id, { jailed: false, jailTurns: 0, jailPaidTurn: false, skipTurns: 0, jailFreeCards: player.jailFreeCards - 1 }), `${player.name} 使用免费获释卡。`);
+  if (method === 'pay' && player.money >= JAIL_RELEASE_FEE) {
+    const remainingTurns = Math.max(0, jailTurns - 1);
+    return addLog(updatePlayer(game, player.id, { money: player.money - JAIL_RELEASE_FEE, jailed: false, jailTurns: remainingTurns, jailPaidTurn: remainingTurns > 0, skipTurns: legacySkipTurns }), `${player.name} 支付 ¥${JAIL_RELEASE_FEE.toLocaleString('zh-CN')} 保释，恢复本回合行动${remainingTurns > 0 ? `，还需处理 ${remainingTurns} 次逮捕停玩` : ''}。`);
+  }
+  if (method === 'skip' || method === 'accept') {
+    const remainingTurns = Math.max(0, jailTurns - 1);
+    return addLog(updatePlayer({ ...game, phase: 'action' }, player.id, { jailed: true, jailTurns: remainingTurns, jailPaidTurn: false, skipTurns: legacySkipTurns }), `${player.name} 选择跳过本回合${remainingTurns > 0 ? `，还需处理 ${remainingTurns} 次逮捕停玩` : ''}。`);
+  }
   return game;
 }
 
@@ -292,9 +303,11 @@ export function endTurn(game) {
   if (game.phase !== 'action') return game;
   let nextIndex = game.current;
   let next = game;
+  const endingPlayer = currentPlayer(game);
+  if (endingPlayer.jailPaidTurn) next = updatePlayer(next, endingPlayer.id, { jailPaidTurn: false, jailed: endingPlayer.jailTurns > 0 });
   let round = game.round;
   let turnCount = game.turnCount ?? 1;
-  const totalSkips = activePlayers(game).reduce((sum, player) => sum + (player.skipTurns ?? 0), 0);
+  const totalSkips = activePlayers(next).reduce((sum, player) => sum + (player.skipTurns ?? 0), 0);
   const maxChecks = game.players.length * (totalSkips + 2);
   for (let checked = 0; checked < maxChecks; checked += 1) {
     nextIndex = (nextIndex + 1) % game.players.length;
@@ -302,11 +315,24 @@ export function endTurn(game) {
     const candidate = next.players[nextIndex];
     if (candidate.bankrupt) continue;
     turnCount += 1;
+    if (candidate.jailed) {
+      const jailTurns = candidate.jailTurns ?? Math.max(candidate.skipTurns ?? 0, 1);
+      if (jailTurns > 0) {
+        if (candidate.jailTurns === undefined) next = updatePlayer(next, candidate.id, { jailTurns, skipTurns: 0 });
+        return checkWinner({ ...next, current: nextIndex, round, turnCount, phase: 'roll', dice: null, lastCard: null, pendingEffect: null, builtThisTurn: false });
+      }
+      next = updatePlayer(next, candidate.id, { jailed: false, jailTurns: 0, jailPaidTurn: false });
+      next = addLog(next, `${candidate.name} 逮捕期结束，恢复行动。`);
+    }
     if ((candidate.skipTurns ?? 0) > 0) {
       const remainingTurns = candidate.skipTurns - 1;
-      next = updatePlayer(next, candidate.id, { skipTurns: remainingTurns, jailed: candidate.jailed && remainingTurns > 0 });
-      next = addLog(next, candidate.jailed ? `${candidate.name} 因逮捕暂停本回合${remainingTurns > 0 ? `，还需停止 ${remainingTurns} 回合` : '，现已恢复行动'}。` : `${candidate.name} 暂停本回合。`);
+      next = updatePlayer(next, candidate.id, { skipTurns: remainingTurns });
+      next = addLog(next, `${candidate.name} 暂停本回合。`);
       continue;
+    }
+    if (candidate.jailed) {
+      next = updatePlayer(next, candidate.id, { jailed: false });
+      next = addLog(next, `${candidate.name} 逮捕期结束，恢复行动。`);
     }
     return checkWinner({ ...next, current: nextIndex, round, turnCount, phase: 'roll', dice: null, lastCard: null, pendingEffect: null, builtThisTurn: false });
   }

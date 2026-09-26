@@ -1,6 +1,6 @@
 import { Building2, Check, Dice5, Flag, KeyRound, TicketCheck, WalletCards } from 'lucide-react';
 import { BOARD } from '../game/board';
-import { buildingLevel, currentPlayer, hasBuildingsOn, hasOptionalPropertyAction, ownerOf } from '../game/engine';
+import { buildingLevel, currentPlayer, hasBuildingsOn, hasOptionalPropertyAction, JAIL_RELEASE_FEE, ownerOf } from '../game/engine';
 import { money } from '../game/format';
 import DiceFace from './DiceFace';
 
@@ -19,7 +19,12 @@ export default function ActionBar({ game, animation, paused = false, canAct = tr
   if (animation.moving) { title = '移动中'; description = ''; }
   else if (animation.rolling) { title = '掷骰中'; description = ''; }
   else if (animation.active && game.phase === 'roll') { title = `${animation.dice} 点`; description = ''; }
-  else if (game.phase === 'roll') { title = player.jailed ? `${player.name} 被逮捕` : `轮到 ${player.name} 了`; description = player.jailed ? player.jailFreeCards > 0 ? '使用获释卡或停止本回合' : '本回合停止行动' : '按空格掷骰出发'; }
+  else if (game.phase === 'roll') {
+    title = player.jailed ? `${player.name} 被逮捕` : `轮到 ${player.name} 了`;
+    description = player.jailed
+      ? `${player.jailTurns > 1 ? `剩余 ${player.jailTurns} 次停玩 · ` : ''}${player.jailFreeCards > 0 ? '按 Alt 使用获释卡' : player.money >= JAIL_RELEASE_FEE ? `按 Alt 支付 ${money(JAIL_RELEASE_FEE)} 保释并行动` : '余额不足，选择跳过本回合'}`
+      : '按空格掷骰出发';
+  }
   else if (game.pendingEffect?.type === 'drawCard') { title = game.pendingEffect.kind === 'chance' ? '机会来了' : '发生大事件'; description = ''; }
   else if (game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null) { title = '再次掷骰'; description = game.pendingEffect.text; }
   else if (game.phase === 'resolve') {
@@ -36,7 +41,7 @@ export default function ActionBar({ game, animation, paused = false, canAct = tr
   else if (game.phase === 'action') { title = ''; description = ''; }
   const showDice = animation.rolling || animation.revealing || (animation.moving && animation.movementKind === 'dice');
   const mechanismMode = Boolean(game.pendingEffect);
-  const hasActionButtons = !showDice && ((game.phase === 'roll' && (!player.jailed || player.jailFreeCards > 0))
+  const hasActionButtons = !showDice && ((game.phase === 'roll')
     || (game.phase === 'resolve' && (game.pendingEffect?.type === 'drawCard' || (game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null) || game.pendingEffect?.type !== 'drawCard'))
     || canBuy || canBuild || (game.phase === 'action' && hasChoice));
   return <section className={`card-actions ${showDice ? 'has-dice' : ''} ${!hasActionButtons ? 'no-actions' : ''} ${mechanismMode ? 'is-mechanism-actions' : ''}`}>
@@ -53,8 +58,10 @@ export default function ActionBar({ game, animation, paused = false, canAct = tr
     {hasActionButtons && <div className="action-buttons">
       {game.phase === 'roll' && !player.jailed && <button className="primary-button action-aggressive dice-button" onClick={onRoll} disabled={disabled} aria-label="掷骰出发"><Dice5 /></button>}
       {game.phase === 'roll' && player.jailed && <>
-        {player.jailFreeCards > 0 && <button className="secondary-button action-conservative" onClick={() => onRelease('card')} disabled={disabled}><TicketCheck />使用获释卡</button>}
-        <button className="ghost-button action-conservative" onClick={() => onRelease('accept')} disabled={disabled}>跳过本回合</button>
+        {player.jailFreeCards > 0
+          ? <button className="secondary-button action-aggressive" onClick={() => onRelease('alt')} disabled={disabled}><TicketCheck />获释卡 · Alt</button>
+          : player.money >= JAIL_RELEASE_FEE && <button className="secondary-button action-aggressive" onClick={() => onRelease('alt')} disabled={disabled}><WalletCards />支付 {money(JAIL_RELEASE_FEE)} · Alt</button>}
+        <button className="ghost-button action-conservative" onClick={() => onRelease('skip')} disabled={disabled}>跳过本回合</button>
       </>}
       {game.phase === 'resolve' && game.pendingEffect?.type === 'drawCard' && <button className="primary-button action-aggressive confirm-button" onClick={onDraw} disabled={disabled} aria-label="确认"><Check /></button>}
       {game.phase === 'resolve' && game.pendingEffect?.requiresRoll && game.pendingEffect.specialRoll === null && <button className="primary-button action-aggressive dice-button" onClick={onMechanismRoll} disabled={disabled} aria-label="机制掷骰"><Dice5 /></button>}

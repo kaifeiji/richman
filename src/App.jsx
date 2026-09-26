@@ -17,6 +17,8 @@ const MAX_MOVE_DURATION = MOVE_STEP_DELAY * 6;
 const CARD_DRAW_DELAY = 1300;
 const EFFECT_DELAY = 1000;
 const AUTO_ACTION_TIMEOUT = 30000;
+const MONEY_EFFECT_DURATION = 1500;
+const MONEY_COUNT_DURATION = 550;
 const movementStepDelay = (stepCount) => Math.min(MOVE_STEP_DELAY, MAX_MOVE_DURATION / Math.max(1, stepCount));
 const kidMoneyParam = Number(new URLSearchParams(window.location.search).get('kid'));
 const kidStartingMoney = new URLSearchParams(window.location.search).has('kid') && Number.isFinite(kidMoneyParam) && kidMoneyParam >= 0
@@ -39,6 +41,8 @@ export default function App() {
   const [actionFeedback, setActionFeedback] = useState(null);
   const [moneyEffects, setMoneyEffects] = useState([]);
   const [moneyPulses, setMoneyPulses] = useState({});
+  const [displayedMoney, setDisplayedMoney] = useState(() => Object.fromEntries((game?.players || []).map((player) => [player.id, player.money])));
+  const [displayedAssets, setDisplayedAssets] = useState(() => Object.fromEntries((game?.players || []).map((player) => [player.id, totalAssets(player)])));
   const previousMoney = useRef(Object.fromEntries((game?.players || []).map((player) => [player.id, player.money])));
 
   const apply = (action) => setGame((current) => {
@@ -53,6 +57,8 @@ export default function App() {
   const startGameWithNames = (gameNames) => {
     const next = createGame(gameNames, kidStartingMoney);
     previousMoney.current = Object.fromEntries(next.players.map((player) => [player.id, player.money]));
+    setDisplayedMoney(Object.fromEntries(next.players.map((player) => [player.id, player.money])));
+    setDisplayedAssets(Object.fromEntries(next.players.map((player) => [player.id, totalAssets(player)])));
     setMoneyEffects([]);
     setMoneyPulses({});
     setPaused(false);
@@ -164,17 +170,23 @@ export default function App() {
       if (previous === undefined || previous === player.money) return [];
       const moneyElement = document.querySelector(`[data-player-id="${player.id}"] .player-money`);
       const rect = moneyElement?.getBoundingClientRect();
-      return [{ id: `${Date.now()}-${player.id}`, playerId: player.id, delta: player.money - previous, targetX: rect ? rect.left + rect.width / 2 : window.innerWidth / 2, targetY: rect ? rect.top + rect.height / 2 : 40 }];
+      return [{ id: `${Date.now()}-${player.id}`, playerId: player.id, delta: player.money - previous, targetMoney: player.money, targetAssets: totalAssets(player), targetX: rect ? rect.left + rect.width / 2 : window.innerWidth / 2, targetY: rect ? rect.top + rect.height / 2 : 40 }];
     }).map((effect, index, effects) => ({ ...effect, offset: (index - (effects.length - 1) / 2) * 150 }));
     previousMoney.current = Object.fromEntries(game.players.map((player) => [player.id, player.money]));
     if (changes.length === 0) return undefined;
     setMoneyEffects((current) => [...current, ...changes]);
-    const pulseTimer = setTimeout(() => setMoneyPulses((current) => ({ ...current, ...Object.fromEntries(changes.map((effect) => [effect.playerId, { id: effect.id, delta: effect.delta }])) })), 950);
-    const clearTimer = setTimeout(() => {
-      setMoneyEffects((current) => current.filter((effect) => !changes.some((change) => change.id === effect.id)));
-      setMoneyPulses({});
-    }, 1550);
-    return () => { clearTimeout(pulseTimer); clearTimeout(clearTimer); };
+    changes.forEach((change) => setTimeout(() => {
+      setMoneyEffects((current) => current.filter((effect) => effect.id !== change.id));
+      setDisplayedMoney((current) => ({ ...current, [change.playerId]: change.targetMoney }));
+      setDisplayedAssets((current) => ({ ...current, [change.playerId]: change.targetAssets }));
+      setMoneyPulses((current) => ({ ...current, [change.playerId]: { id: change.id, delta: change.delta } }));
+      setTimeout(() => setMoneyPulses((current) => {
+        if (current[change.playerId]?.id !== change.id) return current;
+        const next = { ...current };
+        delete next[change.playerId];
+        return next;
+      }), MONEY_COUNT_DURATION);
+    }, MONEY_EFFECT_DURATION));
   }, [game]);
 
   useEffect(() => {
@@ -227,19 +239,6 @@ export default function App() {
   }, [game, paused, animation.active]);
 
   useEffect(() => {
-    if (!game || paused || animation.active || game.phase !== 'roll') return undefined;
-    const player = game.players[game.current];
-    if (!player.jailed) return undefined;
-    if (player.jailFreeCards > 0) return undefined;
-    const delay = 250;
-    const timer = setTimeout(() => setGame((current) => {
-      if (current !== game) return current;
-      return endTurn(releaseFromJail(current, 'accept'));
-    }), delay);
-    return () => clearTimeout(timer);
-  }, [game, paused, animation.active]);
-
-  useEffect(() => {
     if (!game || paused || animation.active || confirmRestart) return undefined;
     const handleKeyDown = (event) => {
       if (event.repeat || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
@@ -252,7 +251,7 @@ export default function App() {
       else if (isConfirmKey && game.phase === 'resolve') void executeEffect();
       else if (isConfirmKey && game.phase === 'roll' && !game.players[game.current].jailed) void animateRoll();
       else if (isConfirmKey && game.phase === 'action') apply(endTurn);
-      else if (isPropertyKey && game.phase === 'roll' && game.players[game.current].jailed && game.players[game.current].jailFreeCards > 0) apply((current) => releaseFromJail(current, 'card'));
+      else if (isPropertyKey && game.phase === 'roll' && game.players[game.current].jailed) apply((current) => releaseFromJail(current, 'alt'));
       else if (isPropertyKey && game.phase === 'action') {
         const player = game.players[game.current];
         const tile = BOARD[player.position];
@@ -281,7 +280,7 @@ export default function App() {
   const ranking = [...game.players].sort((left, right) => totalAssets(right) - totalAssets(left));
   const ranks = new Map(ranking.map((player, index) => [player.id, index + 1]));
   return <main className="game-shell">
-    <div className="player-strip" style={{ '--player-count': game.players.length }}>{game.players.map((player) => <PlayerPanel key={player.id} player={player} active={player.id === activePlayerId} rank={ranks.get(player.id)} moneyPulse={moneyPulses[player.id]} />)}</div>
+    <div className="player-strip" style={{ '--player-count': game.players.length }}>{game.players.map((player) => <PlayerPanel key={player.id} player={player} active={player.id === activePlayerId} rank={ranks.get(player.id)} moneyPulse={moneyPulses[player.id]} displayedMoney={displayedMoney[player.id] ?? player.money} displayedAssets={displayedAssets[player.id] ?? totalAssets(player)} />)}</div>
     <div className="game-layout">
       <Board game={game} displayPositions={displayPositions} movingPlayerId={movingPlayerId} animation={animation} actionFeedback={actionFeedback} paused={paused} canAct onTogglePause={() => setPaused((value) => !value)} onLogOpen={() => { if (!paused) { logPausedRef.current = true; setPaused(true); } }} onLogClose={() => { if (logPausedRef.current) { logPausedRef.current = false; setPaused(false); } }} onRestart={() => setConfirmRestart(true)} onRoll={animateRoll} onBuy={() => animatePropertyAction('buy')} onBuild={() => animatePropertyAction('build')} onEnd={() => apply(endTurn)} onRelease={(method) => apply((current) => releaseFromJail(current, method))} onDraw={animateCardDraw} onMechanismRoll={animateMechanismRoll} onResolve={executeEffect} onSellBuilding={(position) => apply((current) => sellBuilding(current, position))} onSellProperty={(position) => apply((current) => sellProperty(current, position))} />
     </div>
