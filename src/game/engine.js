@@ -255,13 +255,17 @@ export function sellBuilding(game, position) {
 export function liquidationOptions(player) {
   return player.properties.map((position) => {
     const tile = BOARD[position];
-    const isBuilding = buildingLevel(player, position) > 0;
+    const level = buildingLevel(player, position);
+    const isBuilding = level > 0;
     return {
       type: isBuilding ? 'building' : 'property',
       position,
+      level,
       amount: Math.floor((isBuilding ? tile.buildCost : tile.ownership) / 2),
     };
-  }).sort((left, right) => left.amount - right.amount || left.position - right.position);
+  }).sort((left, right) => left.level - right.level
+    || BOARD[left.position].ownership - BOARD[right.position].ownership
+    || left.position - right.position);
 }
 
 export function sellProperty(game, position) {

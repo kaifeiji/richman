@@ -463,13 +463,18 @@ test('requires selling buildings before their land', () => {
   assert.equal(sold.players[0].money, 400);
 });
 
-test('sorts liquidation options by cheapest refund and sells buildings before land', () => {
+test('sorts liquidation by current building level then land price', () => {
   const game = createGame(['甲', '乙']);
-  const player = { ...game.players[0], properties: [21, 1, 4], buildings: { 21: 1, 4: 1 } };
+  const player = { ...game.players[0], properties: [39, 21, 1, 37, 17, 32, 2, 38], buildings: { 21: 1, 37: 1, 17: 2, 32: 2, 2: 3, 38: 3 } };
   assert.deepEqual(liquidationOptions(player), [
-    { type: 'building', position: 4, amount: 600 },
-    { type: 'building', position: 21, amount: 600 },
-    { type: 'property', position: 1, amount: 750 },
+    { type: 'property', position: 1, level: 0, amount: 750 },
+    { type: 'property', position: 39, level: 0, amount: 1000 },
+    { type: 'building', position: 37, level: 1, amount: 500 },
+    { type: 'building', position: 21, level: 1, amount: 600 },
+    { type: 'building', position: 32, level: 2, amount: 400 },
+    { type: 'building', position: 17, level: 2, amount: 500 },
+    { type: 'building', position: 2, level: 3, amount: 400 },
+    { type: 'building', position: 38, level: 3, amount: 500 },
   ]);
 });
 
