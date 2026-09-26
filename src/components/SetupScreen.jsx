@@ -1,4 +1,5 @@
 import { Minus, Plus, Users } from 'lucide-react';
+import { PLAYER_COLORS } from '../game/board';
 
 export default function SetupScreen({ names, setNames, onStart }) {
   const updateName = (index, value) => setNames(names.map((name, itemIndex) => itemIndex === index ? value : name));
@@ -9,7 +10,7 @@ export default function SetupScreen({ names, setNames, onStart }) {
       <div className="setup-heading"><Users size={19} /><strong>玩家设置</strong><span>{names.length} 人</span></div>
       <div className="name-list">
         {names.map((name, index) => <label key={index}>
-          <i style={{ background: ['#d94b3d', '#e2a72c', '#3f83b3', '#34845d'][index] }}>{index + 1}</i>
+          <i style={{ background: PLAYER_COLORS[index] }}>{index + 1}</i>
           <input value={name} maxLength={10} onChange={(event) => updateName(index, event.target.value)} aria-label={`玩家 ${index + 1} 昵称`} />
         </label>)}
       </div>
